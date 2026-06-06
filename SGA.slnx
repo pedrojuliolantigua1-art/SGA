@@ -1,0 +1,25 @@
+<Solution>
+  <Folder Name="/Api/">
+    <Project Path="SGA.Api/SGA.Api.csproj" Id="3dfb23f3-f173-42c3-9a60-3c49638f3d8e" />
+  </Folder>
+  <Folder Name="/Application/">
+    <Project Path="SGA.Application/SGA.Application.csproj" Id="8c347e87-9794-4e38-a5b0-43b1535cd01f" />
+  </Folder>
+  <Folder Name="/Domain/">
+    <Project Path="SGA.Domain/SGA.Domain.csproj" />
+  </Folder>
+  <Folder Name="/Infratructure/">
+    <Project Path="SGA.Infratructure/SGA.Infratructure.csproj" Id="4a046a68-d36b-4877-a3d0-45a2b40c495a" />
+    <Project Path="SGA.Persistence/SGA.Persistence.csproj" Id="64458a86-7a7f-4788-b5f5-c8f4b62c8701" />
+  </Folder>
+  <Folder Name="/Ioc/">
+    <Project Path="SGA.IOC/SGA.IOC.csproj" Id="65170f86-4a93-4bac-b89c-efc57e35cfa9" />
+  </Folder>
+  <Folder Name="/Test/">
+    <Project Path="SGA.Application.Test/SGA.Application.Test.csproj" Id="a9ee632d-1efa-4982-b55f-e3e2d4d2620c" />
+    <Project Path="SGA.Persistence.Test/SGA.Persistence.Test.csproj" Id="24c002c6-9176-4a88-8520-3d9ddef40bb6" />
+  </Folder>
+  <Folder Name="/Web/">
+    <Project Path="SGA.Web/SGA.Web.csproj" Id="50124318-1843-4ea6-8019-7e7ab786c5b3" />
+  </Folder>
+</Solution>

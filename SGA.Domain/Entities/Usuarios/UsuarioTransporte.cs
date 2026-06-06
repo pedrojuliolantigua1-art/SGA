@@ -1,0 +1,18 @@
+﻿using SGA.Domain.Base;
+using System;
+using System.Collections.Generic;
+using System.Text;
+
+namespace SGA.Domain.Entities.Usuarios
+{
+    public abstract class UsuarioTransporte: BaseEntity
+    {
+        public string? Nombre { get; set; }
+        public string? Apellido { get; set; }
+        public string? Correo { get; set; }
+        public string? Telefono { get; set; }
+        public string Estado { get; set; } = "Activo";
+        public string? RolSistema { get; set; }
+
+    }
+}
