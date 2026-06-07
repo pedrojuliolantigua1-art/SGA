@@ -6,8 +6,6 @@ namespace SGA.Domain.Entities.Usuarios
 {
     public class Estudiante: UsuarioTransporte
     {
-        public string? CodigoEmpleado {  get; set; }
-        public string? Departamente { get; set; }
-        public string? Cargo { get; set; }
+        string codigoInstitucional { get; set; }
     }
 }

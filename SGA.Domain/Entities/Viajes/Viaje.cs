@@ -13,8 +13,8 @@ namespace SGA.Domain.Entities.Viajes
         public int ConductorId { get; set; }
         public DateTime Fecha {  get; set; }
         public string? Estado { get; set; } = "Programado";
-        public DateTime HoraInicioReal {  get; set; }
-        public DateTime HoraFinReal { get; set; }
+        public DateTime? HoraInicioReal {  get; set; }
+        public DateTime? HoraFinReal { get; set; }
         public int CupoActual { get; set; }
         public int CapacidadMaxima {  get; set; }
 

@@ -4,7 +4,8 @@ using System.Text;
 
 namespace SGA.Domain.Entities.Usuarios
 {
-    internal class Empleado
+    public class Empleado : UsuarioTransporte
     {
+        string codigoEmpleado { get; set; }
     }
 }

@@ -7,6 +7,6 @@ namespace SGA.Domain.Entities.Autorizaciones
     public class PermisoTransporte : AutorizacionTransporte
     {
         public string? CondicionInstitucional {  get; set; }
-        public DateTime FechaVencimiento { get; set; }
+        public DateTime? FechaVencimiento { get; set; }
     }
 }
