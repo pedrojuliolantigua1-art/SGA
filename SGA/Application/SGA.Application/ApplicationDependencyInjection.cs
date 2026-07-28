@@ -11,6 +11,7 @@ namespace SGA.Application
             services.AddScoped<IUsuarioService, UsuarioService>();
             services.AddScoped<IRutaService, RutaService>();
             services.AddScoped<IParadaService, ParadaService>();
+            services.AddScoped<IAuthService, AuthService>();
             services.AddScoped<IHorarioRutaService, HorarioRutaService>();
             services.AddScoped<IAutobusService, AutobusService>();
             services.AddScoped<IViajeService, ViajeService>();

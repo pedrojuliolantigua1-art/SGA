@@ -1,0 +1,57 @@
+﻿@model SGA.Application.DTOs.Pagos.PagoDto
+@using SGA.Domain.Enum
+
+@{
+    ViewData["Title"] = "Detalle del pago";
+    var badge = Model.Estado switch
+    {
+        EstadoPago.Registrado => "primary",
+        EstadoPago.Aplicado => "success",
+        EstadoPago.Rechazado => "danger",
+        EstadoPago.Anulado => "secondary",
+        _ => "secondary"
+    };
+}
+
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <h2>Detalle del pago</h2>
+    <a asp-action="Index" class="btn btn-secondary">Volver</a>
+</div>
+
+@if (ViewBag.Error != null)
+{
+    <div class="alert alert-danger">@ViewBag.Error</div>
+}
+
+<div class="card shadow-sm border-0 rounded-3">
+    <div class="card-body p-4">
+        <dl class="row mb-0">
+            <dt class="col-sm-3">Id</dt>
+            <dd class="col-sm-9">@Model.Id</dd>
+
+            <dt class="col-sm-3">Usuario</dt>
+            <dd class="col-sm-9">#@Model.UsuarioTransporteId</dd>
+
+            <dt class="col-sm-3">Autorización</dt>
+            <dd class="col-sm-9">#@Model.AutorizacionTransporteId</dd>
+
+            <dt class="col-sm-3">Monto</dt>
+            <dd class="col-sm-9">@Model.Monto.ToString("C")</dd>
+
+            <dt class="col-sm-3">Tipo de pago</dt>
+            <dd class="col-sm-9">@Model.TipoPago</dd>
+
+            <dt class="col-sm-3">Comprobante</dt>
+            <dd class="col-sm-9">@Model.NumeroComprobante</dd>
+
+            <dt class="col-sm-3">Fecha</dt>
+            <dd class="col-sm-9">@Model.FechaHora.ToString("dd/MM/yyyy HH:mm")</dd>
+
+            <dt class="col-sm-3">Registrado por</dt>
+            <dd class="col-sm-9">#@Model.RegistradoPorUsuarioId</dd>
+
+            <dt class="col-sm-3">Estado</dt>
+            <dd class="col-sm-9"><span class="badge bg-@badge">@Model.Estado</span></dd>
+        </dl>
+    </div>
+</div>

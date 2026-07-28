@@ -10,7 +10,7 @@ builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddApplication();
 builder.Services.AddInfrastructure(builder.Configuration);
 
-// Política CORS para permitir el acceso de los clientes Web y Desktop.
+// Política CORS para permitir el acceso de los clientes Web y Desktop
 const string PoliticaClientesSga = "SgaClients";
 
 builder.Services.AddCors(options =>

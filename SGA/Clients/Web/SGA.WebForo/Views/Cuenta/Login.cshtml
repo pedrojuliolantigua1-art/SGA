@@ -1,0 +1,41 @@
+﻿@model SGA.Application.DTOs.Auth.LoginDto
+@{
+    ViewData["Title"] = "Iniciar sesión";
+    Layout = null;
+}
+
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="utf-8" />
+    <title>Iniciar sesión — SGA-ITLA</title>
+    <link rel="stylesheet" href="~/lib/bootstrap/dist/css/bootstrap.min.css" />
+</head>
+<body class="bg-light">
+    <div class="d-flex align-items-center justify-content-center" style="min-height: 100vh;">
+        <div class="card shadow-sm border-0 rounded-4" style="width: 380px;">
+            <div class="card-body p-4">
+                <h4 class="fw-bold mb-1">SGA-ITLA</h4>
+                <p class="text-muted mb-4">Inicia sesión para continuar</p>
+
+                @if (ViewBag.Error != null)
+                {
+                    <div class="alert alert-danger">@ViewBag.Error</div>
+                }
+
+                <form asp-action="Login" asp-route-returnUrl="@ViewBag.ReturnUrl" method="post">
+                    <div class="mb-3">
+                        <label class="form-label">Correo institucional</label>
+                        <input name="Correo" type="email" class="form-control" required autofocus />
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Contraseña</label>
+                        <input name="Password" type="password" class="form-control" required />
+                    </div>
+                    <button type="submit" class="btn btn-primary w-100">Iniciar sesión</button>
+                </form>
+            </div>
+        </div>
+    </div>
+</body>
+</html>

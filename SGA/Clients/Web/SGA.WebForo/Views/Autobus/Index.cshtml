@@ -1,0 +1,89 @@
+﻿@model List<SGA.Application.DTOs.Autobuses.AutobusDto>
+
+@{
+    ViewData["Title"] = "Autobuses";
+}
+
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <h2>Autobuses</h2>
+    <a asp-action="Create" class="btn btn-primary">
+        + Nuevo autobús
+    </a>
+</div>
+
+@if (ViewBag.Error != null)
+{
+    <div class="alert alert-danger">
+        @ViewBag.Error
+    </div>
+}
+
+<form asp-action="Index" method="get" class="d-flex mb-4" style="max-width: 400px;">
+    <input type="text" name="placa" value="@ViewBag.Placa" class="form-control me-2" placeholder="Buscar por placa..." />
+    <button type="submit" class="btn btn-outline-primary">Buscar</button>
+    @if (!string.IsNullOrWhiteSpace((string?)ViewBag.Placa))
+    {
+        <a asp-action="Index" class="btn btn-outline-secondary ms-2">Limpiar</a>
+    }
+</form>
+
+<div class="bg-dark text-white rounded p-3 mb-4">
+    <div class="row text-center">
+        <div class="col">
+            <h4>@Model.Count</h4>
+            <small>Total</small>
+        </div>
+        <div class="col">
+            <h4>@Model.Count(a => a.Estado == "Disponible")</h4>
+            <small>Disponibles</small>
+        </div>
+        <div class="col">
+            <h4>@Model.Count(a => a.Estado == "En servicio")</h4>
+            <small>En servicio</small>
+        </div>
+        <div class="col">
+            <h4>@Model.Count(a => a.Estado == "Mantenimiento")</h4>
+            <small>Mantenimiento</small>
+        </div>
+    </div>
+</div>
+
+<table class="table table-bordered table-hover">
+    <thead class="table-dark">
+        <tr>
+            <th>Placa</th>
+            <th>Marca</th>
+            <th>Modelo</th>
+            <th>Capacidad</th>
+            <th>Estado</th>
+            <th width="120">Acciones</th>
+        </tr>
+    </thead>
+    <tbody>
+        @if (Model.Any())
+        {
+            @foreach (var autobus in Model)
+            {
+                <tr>
+                    <td>@autobus.Placa</td>
+                    <td>@autobus.Marca</td>
+                    <td>@autobus.Modelo</td>
+                    <td>@autobus.Capacidad</td>
+                    <td>@autobus.Estado</td>
+                    <td>
+                        <a asp-action="Details" asp-route-id="@autobus.Id" class="btn btn-info btn-sm">Detalles</a>
+                        <a asp-action="Edit" asp-route-id="@autobus.Id" class="btn btn-warning btn-sm"> Editar</a>
+                    </td>
+                </tr>
+            }
+        }
+        else
+        {
+            <tr>
+                <td colspan="6" class="text-center">
+                    No hay autobuses registrados.
+                </td>
+            </tr>
+        }
+    </tbody>
+</table>

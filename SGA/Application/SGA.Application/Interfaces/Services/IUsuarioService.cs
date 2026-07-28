@@ -13,8 +13,12 @@ namespace SGA.Application.Interfaces.Services
         Task<Result<EstudianteDto>> ObtenerEstudiantePorMatriculaAsync(string matricula);
 
         Task<Result<ConductorDto>> ObtenerConductorPorLicenciaAsync(string numeroLicencia);
+        Task<Result<IReadOnlyList<ConductorDto>>> ListarConductoresAsync();
+        Task<Result<ConductorDto>> ObtenerConductorPorIdAsync(int id);
+        Task<Result<ConductorDto>> RegistrarConductorAsync(CrearConductorDto dto);
+        Task<Result<ConductorDto>> ActualizarConductorAsync(int id, ActualizarConductorDto dto);
+        Task<Result<ConductorDto>> CambiarDisponibilidadAsync(int id, CambiarDisponibilidadConductorDto dto);
         Task<Result<bool>> ValidarPasswordAsync(AutenticarDto dto);
-
         Task<Result<EstudianteDto>> RegistrarEstudianteAsync(CrearEstudianteDto dto);
         Task<Result<EstudianteDto>> ActualizarEstudianteAsync(int id, ActualizarEstudianteDto dto);
 
@@ -23,10 +27,6 @@ namespace SGA.Application.Interfaces.Services
 
         Task<Result<EmpleadoAdministrativoDto>> RegistrarEmpleadoAdministrativoAsync(CrearEmpleadoAdministrativoDto dto);
         Task<Result<EmpleadoAdministrativoDto>> ActualizarEmpleadoAdministrativoAsync(int id, ActualizarEmpleadoAdministrativoDto dto);
-
-        Task<Result<ConductorDto>> RegistrarConductorAsync(CrearConductorDto dto);
-        Task<Result<ConductorDto>> ActualizarConductorAsync(int id, ActualizarConductorDto dto);
-        Task<Result<ConductorDto>> CambiarDisponibilidadAsync(int id, CambiarDisponibilidadConductorDto dto);
 
         Task<Result> EliminarAsync(int id, EliminarDto dto);
     }

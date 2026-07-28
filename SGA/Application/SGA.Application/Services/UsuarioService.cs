@@ -5,7 +5,6 @@ using SGA.Application.Interfaces.Services;
 using SGA.Domain.Entities.Transporte;
 using SGA.Domain.Entities.Usuarios;
 using SGA.Domain.Error;
-using SGA.Domain.Models.Transporte;
 using SGA.Domain.Models.Usuarios;
 using SGA.Domain.Repository.Interfaces;
 using SGA.Domain.Rules;
@@ -71,6 +70,21 @@ namespace SGA.Application.Services
 
             var valido = await _usuarioRepository.ValidarPassword(dto.Correo, dto.PasswordHash);
             return Result<bool>.Ok(valido);
+        }
+
+        public async Task<Result<IReadOnlyList<ConductorDto>>> ListarConductoresAsync()
+        {
+            var usuarios = await _usuarioRepository.GetAllAsync();
+            var conductores = usuarios.OfType<ConductorModel>().Select(MapearConductor).ToList();
+            return Result<IReadOnlyList<ConductorDto>>.Ok(conductores);
+        }
+
+        public async Task<Result<ConductorDto>> ObtenerConductorPorIdAsync(int id)
+        {
+            var usuario = await _usuarioRepository.GetByIdAsync(id);
+            return usuario is not ConductorModel conductor
+                ? Result<ConductorDto>.Fallo(ApplicationErrors.NoEncontrado("el conductor"))
+                : Result<ConductorDto>.Ok(MapearConductor(conductor));
         }
 
         public async Task<Result<EstudianteDto>> RegistrarEstudianteAsync(CrearEstudianteDto dto)

@@ -330,6 +330,7 @@ namespace SGA.Application.Services
         {
             Id = model.Id,
             Placa = model.Placa,
+            Marca = model.Marca,
             Modelo = model.Modelo,
             Capacidad = model.Capacidad,
             Estado = model.Estado
@@ -353,6 +354,7 @@ namespace SGA.Application.Services
                 RolSistema = conductor.RolSistema,
                 TipoUsuario = "Conductor",
                 NumeroLicencia = conductor.NumeroLicencia,
+                FechaVencimientoLicencia = conductor.FechaVencimientoLicencia,
                 Disponible = conductor.Disponible
             };
         }

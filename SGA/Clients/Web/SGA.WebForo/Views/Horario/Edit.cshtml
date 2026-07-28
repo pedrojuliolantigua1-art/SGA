@@ -1,0 +1,51 @@
+﻿@model SGA.Application.DTOs.Horarios.ActualizarHorarioRutaDto
+@{
+    ViewData["Title"] = "Editar horario";
+}
+
+<style>
+    .sga-section-title {
+        font-size: .8rem;
+        text-transform: uppercase;
+        letter-spacing: .06em;
+        color: #6c757d;
+        font-weight: 600;
+    }
+</style>
+
+<div class="mb-4">
+    <div class="sga-section-title mb-1">Programación</div>
+    <h2 class="fw-bold mb-0">Editar horario</h2>
+</div>
+
+@if (ViewBag.Error != null)
+{
+    <div class="alert alert-danger">@ViewBag.Error</div>
+}
+
+<div class="card shadow-sm border-0 rounded-4" style="max-width: 560px;">
+    <div class="card-body p-4">
+        <form asp-action="Edit" asp-route-id="@ViewBag.Id" method="post">
+            <div class="row g-3">
+                <div class="col-6">
+                    <label asp-for="HoraSalida" class="form-label fw-medium">Hora de salida</label>
+                    <input asp-for="HoraSalida" type="time" class="form-control" />
+                </div>
+                <div class="col-6">
+                    <label asp-for="HoraLlegadaEstimada" class="form-label fw-medium">Hora de llegada estimada</label>
+                    <input asp-for="HoraLlegadaEstimada" type="time" class="form-control" />
+                </div>
+            </div>
+
+            <div class="form-check form-switch mt-4">
+                <input asp-for="Activo" class="form-check-input" role="switch" />
+                <label asp-for="Activo" class="form-check-label">Horario activo</label>
+            </div>
+
+            <div class="d-flex gap-2 mt-4">
+                <button type="submit" class="btn btn-primary flex-fill">Guardar cambios</button>
+                <a asp-action="Index" asp-route-rutaId="@ViewBag.RutaId" class="btn btn-outline-secondary flex-fill">Cancelar</a>
+            </div>
+        </form>
+    </div>
+</div>

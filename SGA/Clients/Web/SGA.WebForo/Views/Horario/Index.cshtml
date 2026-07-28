@@ -1,0 +1,117 @@
+﻿@model List<SGA.Application.DTOs.Horarios.HorarioRutaDto>
+@using SGA.Application.DTOs.Rutas
+
+@{
+    ViewData["Title"] = "Horarios";
+    var rutas = (List<RutaDto>)ViewBag.Rutas;
+    int? rutaIdSeleccionada = ViewBag.RutaId;
+    var rutaActual = rutas.FirstOrDefault(r => r.Id == rutaIdSeleccionada);
+}
+
+<style>
+    .sga-section-title {
+        font-size: .8rem;
+        text-transform: uppercase;
+        letter-spacing: .06em;
+        color: #6c757d;
+        font-weight: 600;
+    }
+
+    .sga-empty {
+        border: 1px dashed #ced4da;
+        border-radius: .75rem;
+        padding: 2rem;
+        text-align: center;
+        color: #6c757d;
+        background: #f8f9fa;
+    }
+</style>
+
+<div class="d-flex justify-content-between align-items-start mb-4">
+    <div>
+        <div class="sga-section-title mb-1">Catálogo de transporte / Programación</div>
+        <h2 class="fw-bold mb-0">Horarios</h2>
+    </div>
+    @if (rutaIdSeleccionada is not null)
+    {
+        <a asp-action="Create" asp-route-rutaId="@rutaIdSeleccionada" class="btn btn-success">+ Nuevo horario</a>
+    }
+</div>
+
+@if (ViewBag.Error != null)
+{
+    <div class="alert alert-danger">@ViewBag.Error</div>
+}
+
+<div class="card shadow-sm border-0 rounded-4 mb-4">
+    <div class="card-body p-3">
+        <form asp-action="Index" method="get" class="d-flex align-items-center gap-2">
+            <label class="sga-section-title mb-0">Ruta:</label>
+            <select name="rutaId" class="form-select" style="max-width: 320px;" onchange="this.form.submit()">
+                <option value="">-- Seleccione una ruta --</option>
+                @foreach (var ruta in rutas)
+                {
+                    <option value="@ruta.Id" selected="@(ruta.Id == rutaIdSeleccionada)">@ruta.Nombre</option>
+                }
+            </select>
+            @if (rutaActual is not null)
+            {
+                <a asp-controller="Ruta" asp-action="Details" asp-route-id="@rutaActual.Id" class="btn btn-outline-secondary btn-sm ms-auto">
+                    Ver ficha de la ruta
+                </a>
+            }
+        </form>
+    </div>
+</div>
+
+@if (rutaIdSeleccionada is null)
+{
+    <div class="sga-empty">Selecciona una ruta arriba para ver y administrar sus horarios.</div>
+}
+else if (!Model.Any())
+{
+    <div class="sga-empty">
+        <strong>@rutaActual?.Nombre</strong> todavía no tiene horarios.<br />
+        <a asp-action="Create" asp-route-rutaId="@rutaIdSeleccionada" class="btn btn-success btn-sm mt-2">+ Agregar el primero</a>
+    </div>
+}
+else
+{
+    <div class="card shadow-sm border-0 rounded-4">
+        <div class="table-responsive">
+            <table class="table table-hover align-middle mb-0">
+                <thead class="table-light">
+                    <tr>
+                        <th>Salida</th>
+                        <th>Llegada estimada</th>
+                        <th>Estado</th>
+                        <th class="text-end" style="width: 220px;">Acciones</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @foreach (var horario in Model.OrderBy(h => h.HoraSalida))
+                    {
+                        <tr>
+                            <td class="fw-medium">@horario.HoraSalida.ToString(@"hh\:mm")</td>
+                            <td>@horario.HoraLlegadaEstimada.ToString(@"hh\:mm")</td>
+                            <td>
+                                @if (horario.Activo)
+                                {
+                                    <span class="badge rounded-pill text-bg-success">Activo</span>
+                                }
+                                else
+                                {
+                                    <span class="badge rounded-pill text-bg-secondary">Inactivo</span>
+                                }
+                            </td>
+                            <td class="text-end">
+                                <a asp-action="Details" asp-route-id="@horario.Id" class="btn btn-sm btn-outline-info">Detalles</a>
+                                <a asp-action="Edit" asp-route-id="@horario.Id" class="btn btn-sm btn-outline-warning">Editar</a>
+                            </td>
+                        </tr>
+                    }
+                </tbody>
+            </table>
+        </div>
+    </div>
+}

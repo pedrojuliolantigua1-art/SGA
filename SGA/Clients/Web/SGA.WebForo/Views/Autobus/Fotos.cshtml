@@ -1,0 +1,43 @@
+﻿@model List<SGA.Application.DTOs.Fotos.FotoAutobusDto>
+
+@{
+    ViewData["Title"] = "Fotos del autobús";
+}
+
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <h2>Fotos — @ViewBag.Placa</h2>
+    <a asp-action="Index" class="btn btn-secondary">Volver</a>
+</div>
+
+@if (TempData["Error"] != null)
+{
+    <div class="alert alert-danger">@TempData["Error"]</div>
+}
+
+<form asp-action="SubirFoto" method="post" enctype="multipart/form-data" class="d-flex gap-2 mb-4">
+    <input type="hidden" name="autobusId" value="@ViewBag.AutobusId" />
+    <input type="file" name="archivo" class="form-control" accept="image/*" required />
+    <button type="submit" class="btn btn-primary">Subir foto</button>
+</form>
+
+<div class="row g-3">
+    @if (!Model.Any())
+    {
+        <p class="text-muted">Este autobús no tiene fotos aún.</p>
+    }
+    @foreach (var foto in Model)
+    {
+        <div class="col-md-3">
+            <div class="card">
+                <img src="@foto.UrlPublica" class="card-img-top" alt="@foto.NombreArchivo" />
+                <div class="card-body p-2">
+                    <form asp-action="EliminarFoto" method="post">
+                        <input type="hidden" name="fotoId" value="@foto.Id" />
+                        <input type="hidden" name="autobusId" value="@ViewBag.AutobusId" />
+                        <button type="submit" class="btn btn-outline-danger btn-sm w-100">Eliminar</button>
+                    </form>
+                </div>
+            </div>
+        </div>
+    }
+</div>

@@ -1,0 +1,76 @@
+﻿@model List<SGA.Application.DTOs.Viajes.ViajeDto>
+@using SGA.Domain.Enum
+
+@{
+    ViewData["Title"] = "Viajes";
+    var fecha = (DateTime)ViewBag.Fecha;
+}
+
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <h2>Viajes del @fecha.ToString("dd/MM/yyyy")</h2>
+    <a asp-action="Create" class="btn btn-primary">
+        + Programar viaje
+    </a>
+</div>
+
+@if (ViewBag.Error != null)
+{
+    <div class="alert alert-danger">
+        @ViewBag.Error
+    </div>
+}
+
+<form asp-action="Index" method="get" class="d-flex mb-4" style="max-width: 320px;">
+    <input type="date" name="fecha" value="@fecha.ToString("yyyy-MM-dd")" class="form-control me-2" />
+    <button type="submit" class="btn btn-outline-primary">Consultar</button>
+</form>
+
+<table class="table table-bordered table-hover">
+    <thead class="table-dark">
+        <tr>
+            <th>Ruta</th>
+            <th>Horario</th>
+            <th>Autobús</th>
+            <th>Conductor</th>
+            <th>Cupo</th>
+            <th>Estado</th>
+            <th width="120">Acciones</th>
+        </tr>
+    </thead>
+    <tbody>
+        @if (Model.Any())
+        {
+            @foreach (var viaje in Model)
+            {
+                var badge = viaje.Estado switch
+                {
+                    EstadoViaje.Programado => "primary",
+                    EstadoViaje.EnCurso => "warning",
+                    EstadoViaje.Finalizado => "success",
+                    EstadoViaje.Cancelado => "danger",
+                    EstadoViaje.Retrasado => "secondary",
+                    _ => "secondary"
+                };
+                <tr>
+                    <td>#@viaje.RutaId</td>
+                    <td>#@viaje.HorarioRutaId</td>
+                    <td>#@viaje.AutobusId</td>
+                    <td>#@viaje.ConductorId</td>
+                    <td>@viaje.CupoActual / @viaje.CapacidadMaxima</td>
+                    <td><span class="badge bg-@badge">@viaje.Estado</span></td>
+                    <td>
+                        <a asp-action="Details" asp-route-id="@viaje.Id" class="btn btn-info btn-sm">Detalles</a>
+                    </td>
+                </tr>
+            }
+        }
+        else
+        {
+            <tr>
+                <td colspan="7" class="text-center">
+                    No hay viajes programados para esta fecha.
+                </td>
+            </tr>
+        }
+    </tbody>
+</table>

@@ -1,0 +1,78 @@
+﻿@model SGA.Application.DTOs.Autobuses.AutobusDto
+
+@{
+    ViewData["Title"] = "Detalle del autobús";
+    var badge = Model.Estado switch
+    {
+        "Disponible" => "success",
+        "En servicio" => "warning",
+        "Mantenimiento" => "danger",
+        _ => "secondary"
+    };
+    var fotos = ViewBag.Fotos as List<SGA.Application.DTOs.Fotos.FotoAutobusDto> ?? new();
+}
+
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <h2>Detalle del autobús</h2>
+    <a asp-action="Index" class="btn btn-secondary">Volver</a>
+</div>
+
+@if (ViewBag.Error != null)
+{
+    <div class="alert alert-danger">@ViewBag.Error</div>
+}
+
+<div class="card shadow-sm border-0 rounded-3">
+    <div class="card-body p-4">
+
+        @if (fotos.Any())
+        {
+            <img src="@fotos.First().UrlPublica" class="img-fluid rounded mb-4"
+                 style="max-height:280px;object-fit:cover;width:50%" alt="Foto de @Model.Placa" />
+
+            @if (fotos.Count > 1)
+            {
+                <div class="d-flex gap-2 mb-4 flex-wrap">
+                    @foreach (var f in fotos.Skip(1))
+                    {
+                        <img src="@f.UrlPublica" style="width:80px;height:60px;object-fit:cover" class="rounded" />
+                    }
+                </div>
+            }
+        }
+        else
+        {
+            <div class="bg-light text-center text-muted rounded mb-4 py-5">
+                Sin foto disponible
+            </div>
+        }
+
+        <dl class="row mb-0">
+            <dt class="col-sm-3">Id</dt>
+            <dd class="col-sm-9">@Model.Id</dd>
+
+            <dt class="col-sm-3">Placa</dt>
+            <dd class="col-sm-9">@Model.Placa</dd>
+
+            <dt class="col-sm-3">Marca</dt>
+            <dd class="col-sm-9">@Model.Marca</dd>
+
+            <dt class="col-sm-3">Modelo</dt>
+            <dd class="col-sm-9">@Model.Modelo</dd>
+
+            <dt class="col-sm-3">Capacidad</dt>
+            <dd class="col-sm-9">@Model.Capacidad pasajeros</dd>
+
+            <dt class="col-sm-3">Estado</dt>
+            <dd class="col-sm-9">
+                <span class="badge bg-@badge">@Model.Estado</span>
+            </dd>
+        </dl>
+    </div>
+
+    <div class="card-footer bg-transparent border-0 p-4 pt-0 d-flex gap-2">
+        <a asp-action="Edit" asp-route-id="@Model.Id" class="btn btn-warning">Editar</a>
+        <a asp-action="Fotos" asp-route-id="@Model.Id" class="btn btn-outline-primary">Gestionar fotos</a>
+        <a asp-action="Delete" asp-route-id="@Model.Id" class="btn btn-outline-danger">Eliminar</a>
+    </div>
+</div>

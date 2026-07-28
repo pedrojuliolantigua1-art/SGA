@@ -1,0 +1,69 @@
+﻿@model SGA.Application.DTOs.Autobuses.ActualizarAutobusDto
+@{
+    ViewData["Title"] = "Editar Autobús";
+}
+
+<div class="container mt-4">
+    <h2 class="fw-bold mb-4">Editar Autobús</h2>
+
+    <div class="card shadow-sm border-0 rounded-3">
+        <div class="card-body p-4">
+            <form asp-action="Edit" asp-route-id="@ViewBag.Id" method="post" enctype="multipart/form-data">
+                <div asp-validation-summary="ModelOnly" class="text-danger mb-3"></div>
+
+                <div class="mb-3">
+                    <label asp-for="Placa" class="form-label fw-medium">Placa</label>
+                    <input asp-for="Placa" class="form-control bg-light" readonly />
+                    <span asp-validation-for="Placa" class="text-danger"></span>
+                </div>
+
+                <div class="mb-3">
+                    <label asp-for="Marca" class="form-label fw-medium">Marca</label>
+                    <input asp-for="Marca" class="form-control" />
+                    <span asp-validation-for="Marca" class="text-danger"></span>
+                </div>
+
+                <div class="mb-3">
+                    <label asp-for="Modelo" class="form-label fw-medium">Modelo</label>
+                    <input asp-for="Modelo" class="form-control" />
+                    <span asp-validation-for="Modelo" class="text-danger"></span>
+                </div>
+
+                <div class="mb-3">
+                    <label asp-for="Capacidad" class="form-label fw-medium">Capacidad</label>
+                    <input asp-for="Capacidad" class="form-control" type="number" min="1" />
+                    <span asp-validation-for="Capacidad" class="text-danger"></span>
+                </div>
+
+                <div class="mb-3">
+                    <label class="form-label">Agregar foto</label>
+                    <input type="file" name="foto" class="form-control" accept="image/*" />
+                </div>
+
+                @if (ViewBag.Fotos != null && ((List<SGA.Application.DTOs.Fotos.FotoAutobusDto>)ViewBag.Fotos).Any())
+                {
+                    <div class="mb-3">
+                        <label class="form-label">Fotos actuales</label>
+                        <div class="d-flex gap-2 flex-wrap">
+                            @foreach (var f in (List<SGA.Application.DTOs.Fotos.FotoAutobusDto>)ViewBag.Fotos)
+                            {
+                                <img src="@f.UrlPublica" style="width:100px;height:75px;object-fit:cover" class="rounded" />
+                            }
+                        </div>
+                    </div>
+                }
+
+                <div class="d-flex gap-2">
+                    <button type="submit" class="btn btn-primary flex-fill py-2 fw-semibold">Guardar Cambios</button>
+                    <a asp-action="Index" class="btn btn-secondary flex-fill py-2 fw-semibold">Cancelar</a>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+@section Scripts {
+    @{
+        await Html.RenderPartialAsync("_ValidationScriptsPartial");
+    }
+}

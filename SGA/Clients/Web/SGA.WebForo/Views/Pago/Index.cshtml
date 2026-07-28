@@ -1,0 +1,90 @@
+﻿@model List<SGA.Application.DTOs.Pagos.PagoDto>
+@using SGA.Domain.Enum
+
+@{
+    ViewData["Title"] = "Pagos";
+    var desde = (DateTime)ViewBag.Desde;
+    var hasta = (DateTime)ViewBag.Hasta;
+}
+
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <h2>Pagos</h2>
+    <a asp-action="Create" class="btn btn-primary">
+        + Registrar pago
+    </a>
+</div>
+
+@if (ViewBag.Error != null)
+{
+    <div class="alert alert-danger">
+        @ViewBag.Error
+    </div>
+}
+
+<form asp-action="Index" method="get" class="d-flex gap-2 mb-4" style="max-width: 500px;">
+    <input type="date" name="desde" value="@desde.ToString("yyyy-MM-dd")" class="form-control" />
+    <input type="date" name="hasta" value="@hasta.ToString("yyyy-MM-dd")" class="form-control" />
+    <button type="submit" class="btn btn-outline-primary">Filtrar</button>
+</form>
+
+<div class="bg-dark text-white rounded p-3 mb-4">
+    <div class="row text-center">
+        <div class="col">
+            <h4>@Model.Count</h4>
+            <small>Total de pagos</small>
+        </div>
+        <div class="col">
+            <h4>@Model.Sum(p => p.Monto).ToString("C")</h4>
+            <small>Monto total</small>
+        </div>
+    </div>
+</div>
+
+<table class="table table-bordered table-hover">
+    <thead class="table-dark">
+        <tr>
+            <th>Usuario</th>
+            <th>Monto</th>
+            <th>Tipo de pago</th>
+            <th>Comprobante</th>
+            <th>Fecha</th>
+            <th>Estado</th>
+            <th width="100">Acciones</th>
+        </tr>
+    </thead>
+    <tbody>
+        @if (Model.Any())
+        {
+            @foreach (var pago in Model)
+            {
+                var badge = pago.Estado switch
+                {
+                    EstadoPago.Registrado => "primary",
+                    EstadoPago.Aplicado => "success",
+                    EstadoPago.Rechazado => "danger",
+                    EstadoPago.Anulado => "secondary",
+                    _ => "secondary"
+                };
+                <tr>
+                    <td>#@pago.UsuarioTransporteId</td>
+                    <td>@pago.Monto.ToString("C")</td>
+                    <td>@pago.TipoPago</td>
+                    <td>@pago.NumeroComprobante</td>
+                    <td>@pago.FechaHora.ToString("dd/MM/yyyy HH:mm")</td>
+                    <td><span class="badge bg-@badge">@pago.Estado</span></td>
+                    <td>
+                        <a asp-action="Details" asp-route-id="@pago.Id" class="btn btn-info btn-sm">Detalles</a>
+                    </td>
+                </tr>
+            }
+        }
+        else
+        {
+            <tr>
+                <td colspan="7" class="text-center">
+                    No hay pagos registrados en el período seleccionado.
+                </td>
+            </tr>
+        }
+    </tbody>
+</table>

@@ -11,6 +11,6 @@ namespace SGA.Domain.Models.Transporte
         public int Capacidad { get; set; }
         public string Estado { get; set; } = "Disponible";
 
-        public List<FotoAutobusModel> Fotos { get; set; } = new();
+        public List<FotoAutobusModel>? Fotos { get; set; } = new();
     }
 }

@@ -149,11 +149,11 @@ namespace SGA.Infrastructure.Persistence.Repositories
 
             return administrativo;
         }
-
         public async Task<UsuarioModel?> GetbyCorreo(string correo)
         {
+            var correoNormalizado = correo.Trim().ToLower();
             var baseUsuario = await _context.UsuariosTransporte.AsNoTracking()
-                .FirstOrDefaultAsync(u => u.Correo == correo);
+                .FirstOrDefaultAsync(u => u.Correo!.ToLower() == correoNormalizado);
             return baseUsuario is null ? null : await GetByIdAsync(baseUsuario.Id);
         }
 
@@ -166,9 +166,12 @@ namespace SGA.Infrastructure.Persistence.Repositories
             return (await GetByIdAsync(id))!;
         }
 
-        public async Task<bool> ValidarPassword(string correo, string passwordHash) =>
-            await _context.UsuariosTransporte.AsNoTracking()
-                .AnyAsync(u => u.Correo == correo && u.PasswordHash == passwordHash);
+        public async Task<bool> ValidarPassword(string correo, string passwordHash)
+        {
+            var correoNormalizado = correo.Trim().ToLower();
+            return await _context.UsuariosTransporte.AsNoTracking()
+                .AnyAsync(u => u.Correo!.ToLower() == correoNormalizado && u.PasswordHash == passwordHash.Trim());
+        }
 
         public async Task<UsuarioModel?> GetByMatricula(string matricula) =>
             await _context.Estudiantes.AsNoTracking()

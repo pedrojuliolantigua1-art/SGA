@@ -13,18 +13,11 @@ namespace SGA.Domain.Rules
                 return Result.Fallo(DomainErrors.General.CampoRequerido("horario"));
             }
 
-            var validacion = ValidationGeneral.Combinar(
-                ValidationGeneral.IdValido(horario.Id, "horario"),
-                ValidationGeneral.IdValido(horario.RutaId, "ruta del horario"));
+            var validacion = ValidationGeneral.IdValido(horario.RutaId, "ruta del horario");
 
             if (validacion.EsFallo)
             {
                 return validacion;
-            }
-
-            if (!horario.Activo)
-            {
-                return Result.Fallo(DomainErrors.CatalogoTransporte.HorarioInactivo);
             }
 
             if (horario.HoraSalida == horario.HoraLlegadaEstimada)

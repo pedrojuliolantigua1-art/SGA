@@ -1,12 +1,14 @@
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
+using SGA.Application.Interfaces.Services;
+using SGA.Application.Services;
 using SGA.Domain.Repository.Interfaces;
-using SGA.Infrastructure.Email;
+using SGA.Domain.Services;
 using SGA.Infrastructure.Almacenamiento;
+using SGA.Infrastructure.Email;
 using SGA.Infrastructure.Persistence.Data;
 using SGA.Infrastructure.Persistence.Repositories;
-using SGA.Domain.Services;
 
 namespace SGA.Infrastructure
 {
@@ -24,9 +26,7 @@ namespace SGA.Infrastructure
         }
 
         //persistencia con entity framework core
-        private static IServiceCollection AddPersistence(
-            this IServiceCollection services,
-            IConfiguration configuration)
+        private static IServiceCollection AddPersistence( this IServiceCollection services, IConfiguration configuration)
         {
             var connectionString = configuration.GetConnectionString("DefaultConnection")
                 ?? throw new InvalidOperationException(
@@ -44,6 +44,7 @@ namespace SGA.Infrastructure
             services.AddScoped<INotificacionRepository, NotificacionRepository>();
             services.AddScoped<IRutaRepository, RutaRepository>();
             services.AddScoped<IAutobusRepository, AutobusRepository>();
+            services.AddScoped<IFotoAutobusService, FotoAutobusService>();
             services.AddScoped<IParadaRepository, ParadaRepository>();
             services.AddScoped<IHorarioRutaRepository, HorarioRutaRepository>();
             services.AddScoped<IFotoAutobusRepository, FotoAutobusRepository>();

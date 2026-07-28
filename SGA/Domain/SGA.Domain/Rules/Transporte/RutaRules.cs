@@ -8,7 +8,6 @@ namespace SGA.Domain.Rules
     {
         // Aquí se utiliza Parada para validar las reglas de una ruta,
         // ya que una ruta debe tener al menos 2 paradas y cada una
-        // debe tener un orden mayor que 0.
         public static Result Validar(Ruta? ruta, IEnumerable<Parada>? paradas = null)
         {
             if (ruta is null)
@@ -17,7 +16,6 @@ namespace SGA.Domain.Rules
             }
 
             var validacion = ValidationGeneral.Combinar(
-                ValidationGeneral.IdValido(ruta.Id, "ruta"),
                 ValidationGeneral.RequeridoConLongitud(ruta.Nombre, "nombre de la ruta", min: 3, max: 100));
 
             if (validacion.EsFallo)

@@ -1,0 +1,254 @@
+﻿@model SGA.Application.DTOs.Rutas.RutaDetalleDto
+
+@{
+    ViewData["Title"] = "Detalle de la ruta";
+}
+
+<style>
+    .sga-accent-ruta {
+        border-left: 4px solid #6f42c1;
+    }
+
+    .sga-accent-parada {
+        border-left: 4px solid #0d6efd;
+    }
+
+    .sga-accent-horario {
+        border-left: 4px solid #198754;
+    }
+
+    .sga-section-title {
+        font-size: .8rem;
+        text-transform: uppercase;
+        letter-spacing: .06em;
+        color: #6c757d;
+        font-weight: 600;
+    }
+
+    .sga-empty {
+        border: 1px dashed #ced4da;
+        border-radius: .75rem;
+        padding: 1.5rem;
+        text-align: center;
+        color: #6c757d;
+        background: #f8f9fa;
+    }
+</style>
+
+<div class="d-flex justify-content-between align-items-start mb-4">
+    <div>
+        <div class="sga-section-title mb-1">Catálogo de transporte / Ruta</div>
+        <h2 class="fw-bold mb-0">@Model.Ruta.Nombre</h2>
+    </div>
+    <a asp-action="Index" class="btn btn-outline-secondary">&larr; Volver a rutas</a>
+</div>
+
+@if (ViewBag.Error != null)
+{
+    <div class="alert alert-danger">@ViewBag.Error</div>
+}
+@if (TempData["Error"] != null)
+{
+    <div class="alert alert-danger">@TempData["Error"]</div>
+}
+
+<div class="card shadow-sm border-0 rounded-4 sga-accent-ruta mb-4">
+    <div class="card-body p-4">
+        <div class="row">
+            <div class="col-md-8">
+                <div class="sga-section-title mb-1">Descripción</div>
+                <p class="mb-0">@(string.IsNullOrWhiteSpace(Model.Ruta.Descripcion) ? "Sin descripción registrada." : Model.Ruta.Descripcion)</p>
+            </div>
+            <div class="col-md-4 text-md-end mt-3 mt-md-0">
+                <div class="sga-section-title mb-1">Estado</div>
+                @if (Model.Ruta.Activa)
+                {
+                    <span class="badge rounded-pill text-bg-success px-3 py-2">Activa</span>
+                }
+                else
+                {
+                    <span class="badge rounded-pill text-bg-secondary px-3 py-2">No activa</span>
+                }
+            </div>
+        </div>
+    </div>
+    <div class="card-footer bg-transparent border-0 p-4 pt-0 d-flex flex-wrap gap-2">
+        <a asp-action="Edit" asp-route-id="@Model.Ruta.Id" class="btn btn-warning">Editar ruta</a>
+
+        @if (Model.Ruta.Activa)
+        {
+            <form asp-action="CambiarActiva" asp-route-id="@Model.Ruta.Id" method="post" class="d-inline">
+                <input type="hidden" name="activa" value="false" />
+                <button type="submit" class="btn btn-outline-secondary">Marcar como no activa</button>
+            </form>
+        }
+        else
+        {
+            <form asp-action="CambiarActiva" asp-route-id="@Model.Ruta.Id" method="post" class="d-inline">
+                <input type="hidden" name="activa" value="true" />
+                <button type="submit" class="btn btn-outline-success">Marcar como activa</button>
+            </form>
+        }
+
+        <a asp-action="Delete" asp-route-id="@Model.Ruta.Id" class="btn btn-outline-danger ms-md-auto">Eliminar ruta</a>
+    </div>
+</div>
+
+<div class="row g-4">
+    <div class="col-lg-6">
+        <div class="card shadow-sm border-0 rounded-4 sga-accent-parada h-100">
+            <div class="card-body p-4">
+                <div class="d-flex justify-content-between align-items-center mb-3">
+                    <div>
+                        <div class="sga-section-title mb-1">Recorrido</div>
+                        <h5 class="fw-bold mb-0">Paradas</h5>
+                    </div>
+                    <span class="badge text-bg-light border">@Model.Paradas.Count() registradas</span>
+                </div>
+
+                @if (!Model.Paradas.Any())
+                {
+                    <div class="sga-empty mb-3">
+                        Todavía no hay paradas en esta ruta.<br />Agrega la primera con el formulario de abajo.
+                    </div>
+                }
+                else
+                {
+                    <div class="table-responsive mb-3">
+                        <table class="table table-sm align-middle mb-0">
+                            <thead>
+                                <tr class="text-muted small text-uppercase">
+                                    <th style="width: 60px;">Orden</th>
+                                    <th>Nombre</th>
+                                    <th>Referencia</th>
+                                    <th></th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                @foreach (var parada in Model.Paradas.OrderBy(p => p.Orden))
+                                {
+                                    <tr>
+                                        <td><span class="badge rounded-pill text-bg-primary">@parada.Orden</span></td>
+                                        <td class="fw-medium">@parada.Nombre</td>
+                                        <td class="text-muted">@(parada.Referencia ?? "—")</td>
+                                        <td class="text-end">
+                                            <form asp-controller="Ruta" asp-action="EliminarParada" method="post" class="d-inline">
+                                                <input type="hidden" name="paradaId" value="@parada.Id" />
+                                                <input type="hidden" name="rutaId" value="@Model.Ruta.Id" />
+                                                <button type="submit" class="btn btn-sm btn-outline-danger">Quitar</button>
+                                            </form>
+                                        </td>
+                                    </tr>
+                                }
+                            </tbody>
+                        </table>
+                    </div>
+                }
+
+                <hr class="mt-0" />
+
+                <div class="sga-section-title mb-2">Agregar parada</div>
+                <form asp-controller="Ruta" asp-action="AgregarParada" method="post" class="row g-2">
+                    <input type="hidden" name="rutaId" value="@Model.Ruta.Id" />
+                    <div class="col-12">
+                        <label class="form-label small mb-1">Nombre</label>
+                        <input name="nombre" class="form-control" placeholder="Ej. Parada Centro" required />
+                    </div>
+                    <div class="col-7">
+                        <label class="form-label small mb-1">Referencia</label>
+                        <input name="referencia" class="form-control" placeholder="Ej. frente al parque" />
+                    </div>
+                    <div class="col-5">
+                        <label class="form-label small mb-1">Orden</label>
+                        <input name="orden" type="number" min="1" class="form-control" required />
+                    </div>
+                    <div class="col-12 mt-2">
+                        <button type="submit" class="btn btn-primary w-100">+ Agregar parada</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <div class="col-lg-6">
+        <div class="card shadow-sm border-0 rounded-4 sga-accent-horario h-100">
+            <div class="card-body p-4">
+                <div class="d-flex justify-content-between align-items-center mb-3">
+                    <div>
+                        <div class="sga-section-title mb-1">Programación</div>
+                        <h5 class="fw-bold mb-0">Horarios</h5>
+                    </div>
+                    <a asp-controller="Horario" asp-action="Index" asp-route-rutaId="@Model.Ruta.Id" class="btn btn-sm btn-outline-success">
+                        Ver módulo de horarios
+                    </a>
+                </div>
+
+                @if (!Model.Horarios.Any())
+                {
+                    <div class="sga-empty mb-3">
+                        Todavía no hay horarios en esta ruta.<br />Agrega el primero con el formulario de abajo.
+                    </div>
+                }
+                else
+                {
+                    <div class="table-responsive mb-3">
+                        <table class="table table-sm align-middle mb-0">
+                            <thead>
+                                <tr class="text-muted small text-uppercase">
+                                    <th>Salida</th>
+                                    <th>Llegada est.</th>
+                                    <th>Activo</th>
+                                    <th></th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                @foreach (var horario in Model.Horarios.OrderBy(h => h.HoraSalida))
+                                {
+                                    <tr>
+                                        <td class="fw-medium">@horario.HoraSalida.ToString(@"hh\:mm")</td>
+                                        <td>@horario.HoraLlegadaEstimada.ToString(@"hh\:mm")</td>
+                                        <td>
+                                            @if (horario.Activo)
+                                            {
+                                                <span class="badge text-bg-success">Sí</span>
+                                            }
+                                            else
+                                            {
+                                                <span class="badge text-bg-secondary">No</span>
+                                            }
+                                        </td>
+                                        <td class="text-end">
+                                            <form asp-controller="Ruta" asp-action="EliminarHorario" method="post" class="d-inline">
+                                                <input type="hidden" name="horarioId" value="@horario.Id" />
+                                                <input type="hidden" name="rutaId" value="@Model.Ruta.Id" />
+                                                <button type="submit" class="btn btn-sm btn-outline-danger">Quitar</button>
+                                            </form>
+                                        </td>
+                                    </tr>
+                                }
+                            </tbody>
+                        </table>
+                    </div>
+                }
+
+                <hr class="mt-0" />
+
+                <div class="sga-section-title mb-2">Agregar horario</div>
+                <form asp-controller="Ruta" asp-action="AgregarHorario" method="post" class="row g-2">
+                    <input type="hidden" name="rutaId" value="@Model.Ruta.Id" />
+                    <div class="col-6">
+                        <label class="form-label small mb-1">Hora de salida</label>
+                        <input name="horaSalida" type="time" class="form-control" required />
+                    </div>
+                    <div class="col-6">
+                        <label class="form-label small mb-1">Hora de llegada estimada</label>
+                        <input name="horaLlegadaEstimada" type="time" class="form-control" required />
+                    </div>
+                    <div class="col-12 mt-2">
+                        <button type="submit" class="btn btn-success w-100">+ Agregar horario</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>

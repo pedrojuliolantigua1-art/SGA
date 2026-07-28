@@ -1,0 +1,78 @@
+﻿@using SGA.Application.DTOs.Rutas
+@using SGA.Application.DTOs.Autobuses
+@using SGA.Application.DTOs.Usuarios
+@using SGA.Application.DTOs.Horarios
+@model SGA.Application.DTOs.Viajes.ProgramarViajeDto
+@{
+    ViewData["Title"] = "Programar viaje";
+    var rutas = (List<RutaDto>)ViewBag.Rutas;
+    var autobuses = (List<AutobusDto>)ViewBag.Autobuses;
+    var conductores = (List<ConductorDto>)ViewBag.Conductores;
+    var horarios = (List<HorarioRutaDto>)ViewBag.Horarios;
+}
+
+<h2>Programar viaje</h2>
+
+@if (ViewBag.Error != null)
+{
+    <div class="alert alert-danger">@ViewBag.Error</div>
+}
+
+<form asp-action="Create" method="post">
+    <div asp-validation-summary="ModelOnly" class="text-danger"></div>
+
+    <div class="mb-3">
+        <label asp-for="RutaId" class="form-label">Ruta</label>
+        <select asp-for="RutaId" class="form-select">
+            <option value="">-- Seleccione una ruta --</option>
+            @foreach (var ruta in rutas)
+            {
+                <option value="@ruta.Id">@ruta.Nombre</option>
+            }
+        </select>
+    </div>
+
+    <div class="mb-3">
+        <label asp-for="HorarioRutaId" class="form-label">Horario</label>
+        <select asp-for="HorarioRutaId" class="form-select">
+            <option value="">-- Seleccione un horario --</option>
+            @foreach (var horario in horarios)
+            {
+                <option value="@horario.Id" data-ruta="@horario.RutaId">
+                    Ruta #@horario.RutaId — @horario.HoraSalida.ToString(@"hh\:mm") a @horario.HoraLlegadaEstimada.ToString(@"hh\:mm")
+                </option>
+            }
+        </select>
+        <div class="form-text">Verifique que el horario corresponda a la ruta seleccionada.</div>
+    </div>
+
+    <div class="mb-3">
+        <label asp-for="AutobusId" class="form-label">Autobús</label>
+        <select asp-for="AutobusId" class="form-select">
+            <option value="">-- Seleccione un autobús --</option>
+            @foreach (var autobus in autobuses)
+            {
+                <option value="@autobus.Id">@autobus.Placa — @autobus.Marca @autobus.Modelo (@autobus.Capacidad pax)</option>
+            }
+        </select>
+    </div>
+
+    <div class="mb-3">
+        <label asp-for="ConductorId" class="form-label">Conductor</label>
+        <select asp-for="ConductorId" class="form-select">
+            <option value="">-- Seleccione un conductor --</option>
+            @foreach (var conductor in conductores)
+            {
+                <option value="@conductor.Id">@conductor.Nombre @conductor.Apellido</option>
+            }
+        </select>
+    </div>
+
+    <div class="mb-3">
+        <label asp-for="Fecha" class="form-label">Fecha del viaje</label>
+        <input asp-for="Fecha" type="date" class="form-control" />
+    </div>
+
+    <button type="submit" class="btn btn-primary">Programar</button>
+    <a asp-action="Index" class="btn btn-secondary">Cancelar</a>
+</form>

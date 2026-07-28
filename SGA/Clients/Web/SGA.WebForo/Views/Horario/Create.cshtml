@@ -1,0 +1,59 @@
+﻿@using SGA.Application.DTOs.Rutas
+@model SGA.Application.DTOs.Horarios.CrearHorarioRutaDto
+@{
+    ViewData["Title"] = "Registrar horario";
+    var rutas = (List<RutaDto>)ViewBag.Rutas;
+    int? rutaIdPreseleccionada = ViewBag.RutaId;
+}
+
+<style>
+    .sga-section-title {
+        font-size: .8rem;
+        text-transform: uppercase;
+        letter-spacing: .06em;
+        color: #6c757d;
+        font-weight: 600;
+    }
+</style>
+
+<div class="mb-4">
+    <div class="sga-section-title mb-1">Programación</div>
+    <h2 class="fw-bold mb-0">Registrar horario</h2>
+</div>
+
+@if (ViewBag.Error != null)
+{
+    <div class="alert alert-danger">@ViewBag.Error</div>
+}
+
+<div class="card shadow-sm border-0 rounded-4" style="max-width: 560px;">
+    <div class="card-body p-4">
+        <form asp-action="Create" method="post">
+            <div class="mb-3">
+                <label class="form-label fw-medium">Ruta</label>
+                <select name="RutaId" class="form-select">
+                    <option value="">-- Seleccione una ruta --</option>
+                    @foreach (var ruta in rutas)
+                    {
+                        <option value="@ruta.Id" selected="@(ruta.Id == rutaIdPreseleccionada)">@ruta.Nombre</option>
+                    }
+                </select>
+            </div>
+            <div class="row g-3">
+                <div class="col-6">
+                    <label class="form-label fw-medium">Hora de salida</label>
+                    <input name="HoraSalida" type="time" class="form-control" required />
+                </div>
+                <div class="col-6">
+                    <label class="form-label fw-medium">Hora de llegada estimada</label>
+                    <input name="HoraLlegadaEstimada" type="time" class="form-control" required />
+                </div>
+            </div>
+
+            <div class="d-flex gap-2 mt-4">
+                <button type="submit" class="btn btn-success flex-fill">Guardar horario</button>
+                <a asp-action="Index" asp-route-rutaId="@rutaIdPreseleccionada" class="btn btn-outline-secondary flex-fill">Cancelar</a>
+            </div>
+        </form>
+    </div>
+</div>

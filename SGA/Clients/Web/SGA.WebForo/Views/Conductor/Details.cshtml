@@ -1,0 +1,79 @@
+﻿@model SGA.Application.DTOs.Usuarios.ConductorDto
+
+@{
+    ViewData["Title"] = "Detalle del conductor";
+}
+
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <h2>Detalle del conductor</h2>
+    <a asp-action="Index" class="btn btn-secondary">Volver</a>
+</div>
+
+@if (ViewBag.Error != null)
+{
+    <div class="alert alert-danger">@ViewBag.Error</div>
+}
+@if (TempData["Error"] != null)
+{
+    <div class="alert alert-danger">@TempData["Error"]</div>
+}
+
+<div class="card shadow-sm border-0 rounded-3">
+    <div class="card-body p-4">
+        <dl class="row mb-0">
+            <dt class="col-sm-3">Id</dt>
+            <dd class="col-sm-9">@Model.Id</dd>
+
+            <dt class="col-sm-3">Nombre</dt>
+            <dd class="col-sm-9">@Model.Nombre @Model.Apellido</dd>
+
+            <dt class="col-sm-3">Correo</dt>
+            <dd class="col-sm-9">@Model.Correo</dd>
+
+            <dt class="col-sm-3">Teléfono</dt>
+            <dd class="col-sm-9">@Model.Telefono</dd>
+
+            <dt class="col-sm-3">Licencia</dt>
+            <dd class="col-sm-9">@Model.NumeroLicencia</dd>
+
+            <dt class="col-sm-3">Vencimiento licencia</dt>
+            <dd class="col-sm-9">@(Model.FechaVencimientoLicencia?.ToString("dd/MM/yyyy") ?? "-")</dd>
+
+            <dt class="col-sm-3">Estado</dt>
+            <dd class="col-sm-9">@Model.Estado</dd>
+
+            <dt class="col-sm-3">Disponible</dt>
+            <dd class="col-sm-9">
+                @if (Model.Disponible)
+                {
+                    <span class="badge bg-success">Sí</span>
+                }
+                else
+                {
+                    <span class="badge bg-secondary">No</span>
+                }
+            </dd>
+        </dl>
+    </div>
+
+    <div class="card-footer bg-transparent border-0 p-4 pt-0 d-flex gap-2">
+        <a asp-action="Edit" asp-route-id="@Model.Id" class="btn btn-warning">Editar</a>
+
+        @if (Model.Disponible)
+        {
+            <form asp-action="CambiarDisponibilidad" asp-route-id="@Model.Id" method="post" class="d-inline">
+                <input type="hidden" name="disponible" value="false" />
+                <button type="submit" class="btn btn-outline-secondary">Marcar como no disponible</button>
+            </form>
+        }
+        else
+        {
+            <form asp-action="CambiarDisponibilidad" asp-route-id="@Model.Id" method="post" class="d-inline">
+                <input type="hidden" name="disponible" value="true" />
+                <button type="submit" class="btn btn-outline-success">Marcar como disponible</button>
+            </form>
+        }
+
+        <a asp-action="Delete" asp-route-id="@Model.Id" class="btn btn-outline-danger">Eliminar</a>
+    </div>
+</div>

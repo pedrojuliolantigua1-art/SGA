@@ -1,0 +1,42 @@
+﻿@model SGA.Application.DTOs.Usuarios.CrearConductorDto
+@{
+    ViewData["Title"] = "Registrar conductor";
+}
+
+<h2>Registrar conductor</h2>
+
+<form asp-action="Create" method="post">
+    <div asp-validation-summary="ModelOnly" class="text-danger"></div>
+
+    <div class="mb-3">
+        <label asp-for="Nombre" class="form-label"></label>
+        <input asp-for="Nombre" class="form-control" />
+    </div>
+    <div class="mb-3">
+        <label asp-for="Apellido" class="form-label"></label>
+        <input asp-for="Apellido" class="form-control" />
+    </div>
+    <div class="mb-3">
+        <label asp-for="Correo" class="form-label"></label>
+        <input asp-for="Correo" type="email" class="form-control" />
+    </div>
+    <div class="mb-3">
+        <label asp-for="Telefono" class="form-label"></label>
+        <input asp-for="Telefono" class="form-control" />
+    </div>
+    <div class="mb-3">
+        <label asp-for="PasswordHash" class="form-label">Contraseña</label>
+        <input asp-for="PasswordHash" type="password" class="form-control" />
+    </div>
+    <div class="mb-3">
+        <label asp-for="NumeroLicencia" class="form-label">Número de licencia</label>
+        <input asp-for="NumeroLicencia" class="form-control" />
+    </div>
+    <div class="mb-3">
+        <label asp-for="FechaVencimientoLicencia" class="form-label">Vencimiento de licencia</label>
+        <input asp-for="FechaVencimientoLicencia" type="date" class="form-control" />
+    </div>
+
+    <button type="submit" class="btn btn-primary">Guardar</button>
+    <a asp-action="Index" class="btn btn-secondary">Cancelar</a>
+</form>

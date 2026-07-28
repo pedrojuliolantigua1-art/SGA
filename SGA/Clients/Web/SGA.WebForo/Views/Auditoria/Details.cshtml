@@ -1,0 +1,38 @@
+@model SGA.Application.DTOs.Auditoria.AuditoriaDto
+@{
+    ViewData["Title"] = "Detalle de auditoria";
+}
+
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <h2>Registro #@Model.Id</h2>
+    <a asp-action="Index" class="btn btn-outline-secondary">&larr; Volver</a>
+</div>
+
+@if (ViewBag.Error != null)
+{
+    <div class="alert alert-danger">@ViewBag.Error</div>
+}
+
+<div class="card shadow-sm border-0 rounded-4" style="max-width: 560px;">
+    <div class="card-body p-4">
+        <dl class="row mb-0">
+            <dt class="col-sm-4">Fecha y hora</dt>
+            <dd class="col-sm-8">@Model.FechaHora.ToString("dd/MM/yyyy HH:mm:ss")</dd>
+
+            <dt class="col-sm-4">Actor</dt>
+            <dd class="col-sm-8">#@Model.UsuarioTransporteId</dd>
+
+            <dt class="col-sm-4">Accion</dt>
+            <dd class="col-sm-8"><span class="badge text-bg-light border">@Model.Accion</span></dd>
+
+            <dt class="col-sm-4">Entidad afectada</dt>
+            <dd class="col-sm-8">@Model.EntidadAfectada</dd>
+
+            <dt class="col-sm-4">Id de la entidad</dt>
+            <dd class="col-sm-8">@Model.EntidadId</dd>
+
+            <dt class="col-sm-4">Detalle</dt>
+            <dd class="col-sm-8">@Model.Detalle</dd>
+        </dl>
+    </div>
+</div>
