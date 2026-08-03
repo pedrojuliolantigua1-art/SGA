@@ -251,7 +251,6 @@ namespace SGA.Domain.Rules
                 ValidationGeneral.IdValido(pago.UsuarioTransporteId, "usuario del pago"),
                 ValidationGeneral.MontoPositivo(pago.Monto, "pago"),
                 ValidationGeneral.Requerido(pago.TipoPago, "tipo de pago"),
-                ValidationGeneral.Requerido(pago.NumeroComprobante, "numero de comprobante"),
                 ValidationGeneral.FechaDefinida(pago.FechaHora, "pago"));
 
             if (validacion.EsFallo)

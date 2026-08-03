@@ -29,7 +29,6 @@ namespace SGA.Infrastructure.Persistence.Repositories
                 Monto = p.Monto,
                 TipoPago = p.TipoPago,
                 Estado = p.Estado,
-                NumeroComprobante = p.NumeroComprobante,
                 FechaHora = p.FechaHora,
                 RegistradoPorUsuarioId = p.RegistradoPorUsuarioId,
                 UsuarioNombre = u != null ? u.Nombre + " " + u.Apellido : null,

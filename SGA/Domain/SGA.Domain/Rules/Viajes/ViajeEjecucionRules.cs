@@ -108,19 +108,20 @@ namespace SGA.Domain.Rules
         }
 
         public static Result<Incidencia> ReportarIncidencia(
-            Viaje? viaje, int conductorId, string? tipo, string? descripcion, DateTime fechaHora)
+            Viaje? viaje, int conductorId, string? tipo, string? descripcion, DateTime fechaHora,
+            bool validarConductor = true)
         {
             if (viaje is null)
             {
                 return Result<Incidencia>.Fallo(DomainErrors.Viajes.ViajeRequerido);
             }
 
-            if (viaje.ConductorId != conductorId)
+            if (validarConductor && viaje.ConductorId != conductorId)
             {
                 return Result<Incidencia>.Fallo(DomainErrors.Viajes.ConductorNoAsignado);
             }
 
-            if (!ViajeEspecificaciones.EstaEnEjecucion(viaje))
+            if (validarConductor && !ViajeEspecificaciones.EstaEnEjecucion(viaje))
             {
                 return Result<Incidencia>.Fallo(DomainErrors.Viajes.EstadoInvalido);
             }

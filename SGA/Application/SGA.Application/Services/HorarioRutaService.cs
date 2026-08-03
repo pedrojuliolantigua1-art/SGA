@@ -15,9 +15,19 @@ namespace SGA.Application.Services
     public sealed class HorarioRutaService : IHorarioRutaService
     {
         private readonly IHorarioRutaRepository _horarioRepository;
+        private readonly IViajeRepository _viajeRepository;
+        private readonly IAuditoriaService _auditoriaService;
+        private readonly ICurrentUserService _currentUser;
 
-        public HorarioRutaService(IHorarioRutaRepository horarioRepository) 
-            => _horarioRepository = horarioRepository;
+        public HorarioRutaService(
+            IHorarioRutaRepository horarioRepository, IViajeRepository viajeRepository,
+            IAuditoriaService auditoriaService, ICurrentUserService currentUser)
+        {
+            _horarioRepository = horarioRepository;
+            _viajeRepository = viajeRepository;
+            _auditoriaService = auditoriaService;
+            _currentUser = currentUser;
+        }
 
         public async Task<Result<IReadOnlyList<HorarioRutaDto>>> ListarPorRutaAsync(int rutaId)
         {
@@ -50,6 +60,8 @@ namespace SGA.Application.Services
                 return Result<HorarioRutaDto>.Fallo(validacion.Error!);
 
             await _horarioRepository.AddAsync(horario);
+
+            await _auditoriaService.RegistrarAsync(_currentUser.UsuarioId, "HorarioCreado", "Horario", horario.Id.ToString(), $"Horario creado para la ruta {horario.RutaId} (salida {horario.HoraSalida}).");
             return Result<HorarioRutaDto>.Ok(MapearHorario(horario));
         }
 
@@ -82,8 +94,23 @@ namespace SGA.Application.Services
             if (actual is null)
                 return Result.Fallo(ApplicationErrors.NoEncontrado("el horario"));
 
+            // No se elimina un horario con viajes programados, en curso o retrasados —
+            // dejaría esos viajes "huérfanos" de horario.
+            var viajesDeLaRuta = await _viajeRepository.GetbyRuta(actual.RutaId);
+            var tieneViajesActivos = viajesDeLaRuta.Any(v =>
+                v.HorarioRutaId == horarioId &&
+                (v.Estado == SGA.Domain.Enum.EstadoViaje.Programado ||
+                 v.Estado == SGA.Domain.Enum.EstadoViaje.EnCurso ||
+                 v.Estado == SGA.Domain.Enum.EstadoViaje.Retrasado));
+
+            if (tieneViajesActivos)
+                return Result.Fallo(ApplicationErrors.OperacionInvalida(
+                    "No se puede eliminar: este horario tiene viajes programados, en curso o retrasados. Cancélalos primero."));
+
             var horario = new HorarioRuta { Id = horarioId, Eliminado = true, FechaEliminacion = DateTime.UtcNow, EliminadoPor = dto.EliminadoPor };
             await _horarioRepository.DeleteAsync(horario);
+
+            await _auditoriaService.RegistrarAsync(_currentUser.UsuarioId, "HorarioEliminado", "Horario", horarioId.ToString(), $"Horario eliminado por {dto.EliminadoPor}.");
             return Result.Ok();
         }
 

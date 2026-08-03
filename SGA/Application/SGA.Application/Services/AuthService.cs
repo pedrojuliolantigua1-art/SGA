@@ -26,8 +26,8 @@ namespace SGA.Application.Services
             if (!string.Equals(usuario.Estado, "Activo", StringComparison.OrdinalIgnoreCase))
                 return Result<SesionDto>.Fallo(ApplicationErrors.UsuarioInactivo);
 
-            var credencialesValidas = await _usuarioRepository.ValidarPassword(dto.Correo, dto.Password);
-            if (!credencialesValidas)
+            var hashGuardado = await _usuarioRepository.ObtenerPasswordHashPorCorreoAsync(dto.Correo);
+            if (!SGA.Domain.Common.PasswordHasher.Verificar(dto.Password, hashGuardado))
                 return Result<SesionDto>.Fallo(ApplicationErrors.CredencialesInvalidas);
 
             return Result<SesionDto>.Ok(MapearSesion(usuario));
@@ -37,12 +37,13 @@ namespace SGA.Application.Services
             u.Id, u.Nombre, u.Apellido, u.Correo, u.RolSistema,
             u switch
             {
-                EstudianteModel => "Estudiante",
-                ConductorModel => "Conductor",
-                EmpleadoDocenteModel => "EmpleadoDocente",
-                EmpleadoAdministrativoModel => "EmpleadoAdministrativo",
-                EmpleadoModel => "Empleado",
-                _ => u.GetType().Name
+                EstudianteModel              => "Estudiante",
+                ConductorModel               => "Conductor",
+                EmpleadoDocenteModel         => "EmpleadoDocente",
+                EmpleadoAdministrativoModel  => "EmpleadoAdministrativo",
+                EmpleadoModel                => "Empleado",
+                AdministradorTransporteModel => "AdministradorTransporte",
+                _                            => u.GetType().Name
             });
     }
 }

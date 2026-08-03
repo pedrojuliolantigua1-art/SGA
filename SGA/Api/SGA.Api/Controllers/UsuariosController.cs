@@ -3,9 +3,11 @@ using SGA.Api.Common;
 using SGA.Application.DTOs.Common;
 using SGA.Application.DTOs.Usuarios;
 using SGA.Application.Interfaces.Services;
+using Microsoft.AspNetCore.Authorization;
 
 namespace SGA.Api.Controllers
 {
+    [Authorize]
     [ApiController]
     [Route("api/usuarios")]
     public sealed class UsuariosController : ControllerBase
@@ -30,6 +32,14 @@ namespace SGA.Api.Controllers
         [HttpGet("estudiantes/por-matricula")]
         public async Task<IActionResult> ObtenerEstudiantePorMatricula([FromQuery] string matricula)
             => this.AResultado(await _usuarioService.ObtenerEstudiantePorMatriculaAsync(matricula));
+
+        [HttpGet("conductores")]
+        public async Task<IActionResult> ListarConductores()
+            => this.AResultado(await _usuarioService.ListarConductoresAsync());
+
+        [HttpGet("conductores/{id:int}")]
+        public async Task<IActionResult> ObtenerConductorPorId(int id)
+            => this.AResultado(await _usuarioService.ObtenerConductorPorIdAsync(id));
 
         [HttpGet("conductores/por-licencia")]
         public async Task<IActionResult> ObtenerConductorPorLicencia([FromQuery] string numeroLicencia)
@@ -75,5 +85,29 @@ namespace SGA.Api.Controllers
         [HttpPatch("conductores/{id:int}/disponibilidad")]
         public async Task<IActionResult> CambiarDisponibilidad(int id, [FromBody] CambiarDisponibilidadConductorDto dto)
             => this.AResultado(await _usuarioService.CambiarDisponibilidadAsync(id, dto));
+
+        // ─── Administrador de Transporte ──────────────────────────────────────
+        [HttpGet("administradores")]
+        public async Task<IActionResult> ListarAdministradores()
+            => this.AResultado(await _usuarioService.ListarAdministradoresAsync());
+
+        [HttpGet("administradores/{id:int}")]
+        public async Task<IActionResult> ObtenerAdministradorPorId(int id)
+            => this.AResultado(await _usuarioService.ObtenerAdministradorPorIdAsync(id));
+
+        /// <summary>
+        /// Crea un nuevo Administrador de Transporte.
+        /// Este endpoint es público (AllowAnonymous) para poder crear el primer administrador
+        /// cuando la base de datos está vacía. Una vez creado el primer admin, se recomienda
+        /// protegerlo manualmente o agregar una validación de "solo si no existe ningún admin".
+        /// </summary>
+        [AllowAnonymous]
+        [HttpPost("administradores")]
+        public async Task<IActionResult> RegistrarAdministrador([FromBody] CrearAdministradorTransporteDto dto)
+            => this.AResultadoCreado(await _usuarioService.RegistrarAdministradorTransporteAsync(dto));
+
+        [HttpPut("administradores/{id:int}")]
+        public async Task<IActionResult> ActualizarAdministrador(int id, [FromBody] ActualizarAdministradorTransporteDto dto)
+            => this.AResultado(await _usuarioService.ActualizarAdministradorTransporteAsync(id, dto));
     }
 }

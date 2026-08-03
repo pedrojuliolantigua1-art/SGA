@@ -18,9 +18,22 @@ namespace SGA.Application.DTOs.Viajes
         int ViajeId, string Motivo, string? CreadoPor);
 
     public sealed record IncidenciaDto(
-        int Id, int ViajeId, int ConductorId, string? Tipo, string? Descripcion, DateTime FechaHora);
+        int Id, int ViajeId, int ConductorId, string? Tipo, string? Descripcion, DateTime FechaHora,
+        string? ConductorNombre = null);
 
     public sealed record ReportarIncidenciaDto(
         int ViajeId, int ConductorId, string Tipo, string Descripcion,
-        DateTime FechaHora, string? CreadoPor);
+        DateTime FechaHora, string? CreadoPor, bool EsAdmin = false);
+
+    /// <summary>
+    /// Programa el mismo viaje (misma ruta/horario/autobús/conductor) para varios días de UNA semana,
+    /// en una sola operación. Cada día queda como un Viaje independiente — se puede editar, cancelar
+    /// o cambiar de autobús/conductor un día puntual sin afectar a los demás.
+    /// </summary>
+    public sealed record ProgramarSemanaDto(
+        int RutaId, int HorarioRutaId, int AutobusId, int ConductorId,
+        DateTime FechaReferenciaSemana, List<DayOfWeek> Dias, string? CreadoPor);
+
+    public sealed record ProgramarSemanaResultadoDto(
+        IReadOnlyList<ViajeDto> Creados, IReadOnlyList<string> Errores);
 }

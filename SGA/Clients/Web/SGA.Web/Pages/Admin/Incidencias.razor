@@ -1,0 +1,228 @@
+@page "/admin/incidencias"
+@using SGA.Web.Models.Rutas
+@using SGA.Web.Models.Viajes
+@inject SgaApiService Api
+@inject SesionState Sesion
+
+<PageTitle>Incidencias del Día</PageTitle>
+
+<div class="sga-topbar">
+    <h1>⚠️ Incidencias del Día</h1>
+    <button class="btn btn-sga-secundario btn-sm" @onclick="CargarAsync">Refrescar</button>
+</div>
+
+@if (Sesion.Usuario?.EsAdministradorTransporte != true)
+{
+    <div class="sga-card acento-rojo">No tienes permiso para administrar incidencias.</div>
+}
+else
+{
+    @if (_mensaje is not null)
+    {
+        <div class="@(_mensajeEsError ? "sga-mensaje-error" : "sga-mensaje-exito")">@_mensaje</div>
+    }
+
+    <div class="row g-3">
+        <div class="col-lg-5">
+            <div class="sga-card">
+                <h2>Registrar incidencia</h2>
+                <p class="text-muted">Selecciona el viaje del día y describe lo ocurrido. Los estudiantes de ese viaje y los administradores recibirán la notificación automáticamente.</p>
+
+                <div class="mb-3">
+                    <label class="form-label">Viaje</label>
+                    <select class="form-select" @bind="_viajeSeleccionado">
+                        <option value="0">-- Selecciona un viaje --</option>
+                        @foreach (var viaje in _viajesDelDia)
+                        {
+                            <option value="@viaje.Id">Viaje #@viaje.Id — @(ObtenerDescripcionViaje(viaje))</option>
+                        }
+                    </select>
+                </div>
+
+                <div class="mb-3">
+                    <label class="form-label">Tipo</label>
+                    <select class="form-select" @bind="_tipo">
+                        <option value="Retraso">Retraso</option>
+                        <option value="Averia">Avería</option>
+                        <option value="Desvio">Desvío</option>
+                        <option value="Otro">Otro</option>
+                    </select>
+                </div>
+
+                <div class="mb-3">
+                    <label class="form-label">Descripción</label>
+                    <textarea class="form-control" rows="3" @bind="_descripcion" placeholder="Describe lo ocurrido"></textarea>
+                </div>
+
+                <button class="btn btn-sga-peligro w-100" @onclick="RegistrarAsync" disabled="@(_guardando || _viajeSeleccionado == 0)">
+                    @(_guardando ? "Guardando..." : "Registrar incidencia")
+                </button>
+            </div>
+        </div>
+
+        <div class="col-lg-7">
+            <div class="sga-card">
+                <h2>Incidencias de hoy (@_fecha.ToShortDateString())</h2>
+
+                @if (_cargando)
+                {
+                    <p class="text-muted mb-0">Cargando...</p>
+                }
+                else if (_incidencias.Count == 0)
+                {
+                    <p class="text-muted mb-0">No hay incidencias registradas hoy.</p>
+                }
+                else
+                {
+                    <table class="table table-sga">
+                        <thead>
+                            <tr>
+                                <th>Viaje</th>
+                                <th>Tipo</th>
+                                <th>Descripción</th>
+                                <th>Conductor</th>
+                                <th>Hora</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            @foreach (var inc in _incidencias.OrderByDescending(i => i.FechaHora))
+                            {
+                                <tr>
+                                    <td>#@inc.ViajeId</td>
+                                    <td><span class="badge-estado estado-retrasado">@inc.Tipo</span></td>
+                                    <td>@inc.Descripcion</td>
+                                    <td>@(inc.ConductorNombre ?? $"Conductor #{inc.ConductorId}")</td>
+                                    <td>@inc.FechaHora.ToString("hh:mm tt")</td>
+                                </tr>
+                            }
+                        </tbody>
+                    </table>
+                }
+            </div>
+        </div>
+    </div>
+}
+
+@code {
+    private DateTime _fecha = DateTime.Today;
+    private List<ViajeModel> _viajesDelDia = new();
+    private List<IncidenciaModel> _incidencias = new();
+    private Dictionary<int, string> _descripcionesViaje = new();
+    private int _viajeSeleccionado;
+    private string _tipo = "Retraso";
+    private string _descripcion = string.Empty;
+    private bool _cargando = true;
+    private bool _guardando;
+    private string? _mensaje;
+    private bool _mensajeEsError;
+
+    protected override async Task OnInitializedAsync()
+    {
+        if (Sesion.Usuario?.EsAdministradorTransporte == true)
+            await CargarAsync();
+        else
+            _cargando = false;
+    }
+
+    private async Task CargarAsync()
+    {
+        _cargando = true;
+        _mensaje = null;
+
+        var fechaTexto = _fecha.ToString("yyyy-MM-dd");
+
+        var viajes = await Api.GetAsync<List<ViajeModel>>($"api/viajes/por-fecha?fecha={fechaTexto}");
+        if (viajes.EsExitoso)
+            _viajesDelDia = viajes.Valor ?? new();
+
+        var incidencias = await Api.GetAsync<List<IncidenciaModel>>($"api/viajes/incidencias/por-periodo?desde={fechaTexto}&hasta={fechaTexto}");
+        if (incidencias.EsExitoso)
+            _incidencias = incidencias.Valor ?? new();
+
+        await CargarDescripcionesAsync();
+
+        if (_viajeSeleccionado != 0 && !_viajesDelDia.Any(v => v.Id == _viajeSeleccionado))
+            _viajeSeleccionado = 0;
+
+        _cargando = false;
+    }
+
+    private async Task CargarDescripcionesAsync()
+    {
+        foreach (var rutaId in _viajesDelDia.Select(v => v.RutaId).Distinct())
+        {
+            if (_descripcionesViaje.ContainsKey(rutaId)) continue;
+
+            var detalle = await Api.GetAsync<RutaDetalleModel>($"api/rutas/{rutaId}/detalle");
+            if (detalle.EsExitoso && detalle.Valor is not null)
+            {
+                var horarios = detalle.Valor.Horarios;
+                foreach (var viaje in _viajesDelDia.Where(v => v.RutaId == rutaId))
+                {
+                    var horario = horarios.FirstOrDefault(h => h.Id == viaje.HorarioRutaId);
+                    _descripcionesViaje[viaje.Id] =
+                        $"{detalle.Valor.Ruta.Nombre} — Salida {(horario is null ? "?" : horario.HoraSalida.ToString(@"hh\:mm"))} ({viaje.DescripcionEstado})";
+                }
+            }
+        }
+    }
+
+    private string ObtenerDescripcionViaje(ViajeModel viaje) =>
+        _descripcionesViaje.GetValueOrDefault(viaje.Id, $"{viaje.DescripcionEstado}");
+
+    private async Task RegistrarAsync()
+    {
+        _mensaje = null;
+
+        if (string.IsNullOrWhiteSpace(_descripcion))
+        {
+            MostrarMensaje(false, "Describe la incidencia antes de registrarla.");
+            return;
+        }
+
+        var viaje = _viajesDelDia.FirstOrDefault(v => v.Id == _viajeSeleccionado);
+        if (viaje is null)
+        {
+            MostrarMensaje(false, "Selecciona un viaje válido.");
+            return;
+        }
+
+        _guardando = true;
+        try
+        {
+            var dto = new ReportarIncidenciaModel
+            {
+                ViajeId = viaje.Id,
+                ConductorId = viaje.ConductorId,
+                Tipo = _tipo,
+                Descripcion = _descripcion,
+                CreadoPor = Sesion.Usuario?.Correo,
+                EsAdmin = true
+            };
+
+            var resultado = await Api.PostAsync<IncidenciaModel>("api/viajes/incidencias", dto);
+
+            if (!resultado.EsExitoso)
+            {
+                MostrarMensaje(false, resultado.Error ?? "No se pudo registrar la incidencia.");
+                return;
+            }
+
+            MostrarMensaje(true, "Incidencia registrada. Los estudiantes y administradores fueron notificados.");
+            _tipo = "Retraso";
+            _descripcion = string.Empty;
+            _viajeSeleccionado = 0;
+            await CargarAsync();
+        }
+        finally
+        {
+            _guardando = false;
+        }
+    }
+
+    private void MostrarMensaje(bool exito, string mensaje)
+    {
+        _mensaje = mensaje;
+        _mensajeEsError = !exito;
+    }
+}

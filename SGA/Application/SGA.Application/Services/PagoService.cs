@@ -13,11 +13,13 @@ namespace SGA.Application.Services
     {
         private readonly IPagoRepository _pagoRepository;
         private readonly IUsuarioRepository _usuarioRepository;
+        private readonly IAuditoriaService _auditoriaService;
 
-        public PagoService(IPagoRepository pagoRepository, IUsuarioRepository usuarioRepository)
+        public PagoService(IPagoRepository pagoRepository, IUsuarioRepository usuarioRepository, IAuditoriaService auditoriaService)
         {
             _pagoRepository = pagoRepository;
             _usuarioRepository = usuarioRepository;
+            _auditoriaService = auditoriaService;
         }
 
         public async Task<Result<PagoDto>> RegistrarAsync(RegistrarPagoDto dto)
@@ -26,7 +28,6 @@ namespace SGA.Application.Services
                 ValidationGeneral.IdValido(dto.UsuarioTransporteId, "usuario"),
                 ValidationGeneral.MontoPositivo(dto.Monto, "pago"),
                 ValidationGeneral.Requerido(dto.TipoPago, "tipo de pago"),
-                ValidationGeneral.Requerido(dto.NumeroComprobante, "numero de comprobante"),
                 ValidationGeneral.FechaDefinida(dto.FechaHora, "pago"));
 
             if (validacion.EsFallo)
@@ -43,7 +44,6 @@ namespace SGA.Application.Services
                 Monto = dto.Monto,
                 TipoPago = dto.TipoPago,
                 Estado = SGA.Domain.Enum.EstadoPago.Registrado,
-                NumeroComprobante = dto.NumeroComprobante,
                 FechaHora = dto.FechaHora,
                 RegistradoPorUsuarioId = dto.RegistradoPorUsuarioId,
                 FechaCreacion = DateTime.UtcNow,
@@ -51,7 +51,12 @@ namespace SGA.Application.Services
             };
 
             await _pagoRepository.AddAsync(entity);
-            return Result<PagoDto>.Ok(new(entity.Id, entity.UsuarioTransporteId, entity.AutorizacionTransporteId, entity.Monto, entity.TipoPago, entity.Estado, entity.NumeroComprobante, entity.FechaHora, entity.RegistradoPorUsuarioId));
+
+            await _auditoriaService.RegistrarAsync(
+                dto.RegistradoPorUsuarioId, "PagoRegistrado", "Pago", entity.Id.ToString(),
+                $"Pago de {entity.Monto:C} ({entity.TipoPago}) registrado para el usuario {entity.UsuarioTransporteId},");
+
+            return Result<PagoDto>.Ok(new(entity.Id, entity.UsuarioTransporteId, entity.AutorizacionTransporteId, entity.Monto, entity.TipoPago, entity.Estado, entity.FechaHora, entity.RegistradoPorUsuarioId));
         }
 
         public async Task<Result<IReadOnlyList<PagoDto>>> ListarPorUsuarioAsync(int usuarioId)
@@ -90,6 +95,6 @@ namespace SGA.Application.Services
         }
 
         private static PagoDto Mapear(PagoModel p) =>
-            new(p.Id, p.UsuarioTransporteId, p.AutorizacionTransporteId, p.Monto, p.TipoPago, p.Estado, p.NumeroComprobante, p.FechaHora, p.RegistradoPorUsuarioId);
+            new(p.Id, p.UsuarioTransporteId, p.AutorizacionTransporteId, p.Monto, p.TipoPago, p.Estado, p.FechaHora, p.RegistradoPorUsuarioId);
     }
 }

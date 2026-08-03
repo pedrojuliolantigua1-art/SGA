@@ -3,9 +3,11 @@ using SGA.Api.Common;
 using SGA.Application.DTOs.Autobuses;
 using SGA.Application.DTOs.Common;
 using SGA.Application.Interfaces.Services;
+using Microsoft.AspNetCore.Authorization;
 
 namespace SGA.Api.Controllers
 {
+    [Authorize]
     [Route("api/[controller]")]
     [ApiController]
     public sealed class AutobusesController : ControllerBase

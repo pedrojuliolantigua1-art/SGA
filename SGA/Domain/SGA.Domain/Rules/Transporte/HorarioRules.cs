@@ -1,4 +1,4 @@
-﻿using SGA.Domain.Entities.Transporte;
+using SGA.Domain.Entities.Transporte;
 using SGA.Domain.Error;
 using SGA.Domain.Validation;
 
@@ -6,7 +6,7 @@ namespace SGA.Domain.Rules
 {
     public static class HorarioRules
     {
-        public static Result Validar(HorarioRuta? horario, Ruta? ruta = null)
+        public static Result Validar(HorarioRuta? horario, bool rutaActiva = true, int? rutaIdEsperado = null)
         {
             if (horario is null)
             {
@@ -14,20 +14,24 @@ namespace SGA.Domain.Rules
             }
 
             var validacion = ValidationGeneral.IdValido(horario.RutaId, "ruta del horario");
-
             if (validacion.EsFallo)
             {
                 return validacion;
             }
 
-            if (horario.HoraSalida == horario.HoraLlegadaEstimada)
+            if (horario.HoraLlegadaEstimada <= horario.HoraSalida)
             {
                 return Result.Fallo(DomainErrors.CatalogoTransporte.HorarioInvalido);
             }
 
-            if (ruta is not null && horario.RutaId != ruta.Id)
+            if (rutaIdEsperado is not null && horario.RutaId != rutaIdEsperado)
             {
                 return Result.Fallo(DomainErrors.CatalogoTransporte.HorarioNoPerteneceRuta);
+            }
+
+            if (!rutaActiva)
+            {
+                return Result.Fallo(DomainErrors.CatalogoTransporte.RutaInactiva);
             }
 
             return Result.Ok();

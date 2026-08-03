@@ -2,9 +2,11 @@ using Microsoft.AspNetCore.Mvc;
 using SGA.Api.Common;
 using SGA.Application.DTOs.Autorizaciones;
 using SGA.Application.Interfaces.Services;
+using Microsoft.AspNetCore.Authorization;
 
 namespace SGA.Api.Controllers
 {
+    [Authorize]
     [ApiController]
     [Route("api/autorizaciones")]
     public sealed class AutorizacionesController : ControllerBase
@@ -50,5 +52,9 @@ namespace SGA.Api.Controllers
         [HttpPost("{id:int}/anular")]
         public async Task<IActionResult> Anular(int id, [FromBody] AnularAutorizacionDto dto)
             => this.AResultado(await _autorizacionService.AnularAsync(id, dto));
+
+        [HttpPost("billetera")]
+        public async Task<IActionResult> RecargarBilletera([FromBody] RecargarBilleteraDto dto)
+            => this.AResultadoCreado(await _autorizacionService.RecargarBilleteraAsync(dto));
     }
 }

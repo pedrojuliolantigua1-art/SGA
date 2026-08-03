@@ -29,6 +29,9 @@ namespace SGA.Application.Interfaces.Services
         // programa un viaje
         Task<Result<ViajeDto>> ProgramarAsync(ProgramarViajeDto dto);
 
+        // programa el mismo viaje para varios dias de una semana, en una sola operacion
+        Task<Result<ProgramarSemanaResultadoDto>> ProgramarSemanaAsync(ProgramarSemanaDto dto);
+
         // inicia un viaje
         Task<Result<ViajeDto>> IniciarAsync(EjecutarViajeDto dto);
 
@@ -40,5 +43,8 @@ namespace SGA.Application.Interfaces.Services
 
         // reporta una incidencia del viaje
         Task<Result<IncidenciaDto>> ReportarIncidenciaAsync(ReportarIncidenciaDto dto);
+
+        // lista incidencias por periodo (reporte)
+        Task<Result<IReadOnlyList<IncidenciaDto>>> ListarIncidenciasPorPeriodoAsync(DateTime desde, DateTime hasta);
     }
 }

@@ -1,0 +1,182 @@
+@page "/conductor/mis-viajes"
+@using SGA.Web.Models.Viajes
+@inject SgaApiService Api
+@inject SesionState Sesion
+
+<PageTitle>Mis Viajes</PageTitle>
+
+<div class="sga-topbar">
+    <h1>🧭 Mis Viajes</h1>
+    <button class="btn btn-sga-secundario btn-sm" @onclick="CargarAsync">Refrescar</button>
+</div>
+
+@if (_mensajeGlobal is not null)
+{
+    <div class="@(_mensajeGlobalEsError ? "sga-mensaje-error" : "sga-mensaje-exito")">@_mensajeGlobal</div>
+}
+
+@if (_cargando)
+{
+    <p>Cargando tus viajes...</p>
+}
+else if (_error is not null)
+{
+    <div class="sga-mensaje-error">@_error</div>
+}
+else if (_viajes.Count == 0)
+{
+    <div class="sga-card">No tienes viajes asignados por el momento.</div>
+}
+else
+{
+    @foreach (var viaje in _viajes.OrderByDescending(v => v.Fecha))
+    {
+        <div class="sga-card">
+            <div class="d-flex justify-content-between align-items-start">
+                <div>
+                    <h2 class="mb-1">Viaje #@viaje.Id — @viaje.Fecha.ToShortDateString()</h2>
+                    <span class="badge-estado @viaje.ClaseEstado">@viaje.DescripcionEstado</span>
+                    <span class="text-muted ms-2">Cupo: @viaje.CupoActual / @viaje.CapacidadMaxima</span>
+                </div>
+                <div>
+                    @if (PuedeIntentarIniciar(viaje))
+                    {
+                        <button class="btn btn-sga-primario btn-sm"
+                                disabled="@(_iniciando || HayOtroViajeEnEjecucion(viaje))"
+                                @onclick="() => IniciarAsync(viaje)">
+                            @(_iniciando ? "Iniciando..." : "Iniciar viaje")
+                        </button>
+                    }
+                    @if (EstaEnEjecucion(viaje))
+                    {
+                        <button class="btn btn-sga-primario btn-sm me-2" @onclick="() => FinalizarAsync(viaje)">Finalizar viaje</button>
+                        <button class="btn btn-sga-secundario btn-sm" @onclick="() => AlternarIncidenciaAsync(viaje.Id)">Reportar incidencia</button>
+                    }
+                </div>
+            </div>
+
+            @if (_incidenciaAbierta == viaje.Id)
+            {
+                <hr />
+                <div class="row g-2 align-items-end">
+                    <div class="col-md-3">
+                        <label class="form-label">Tipo</label>
+                        <select class="form-select" @bind="_tipoIncidencia">
+                            <option value="Retraso">Retraso</option>
+                            <option value="Averia">Avería</option>
+                            <option value="Desvio">Desvío</option>
+                            <option value="Otro">Otro</option>
+                        </select>
+                    </div>
+                    <div class="col-md-6">
+                        <label class="form-label">Descripción</label>
+                        <input class="form-control" @bind="_descripcionIncidencia" placeholder="Describe lo ocurrido" />
+                    </div>
+                    <div class="col-md-3">
+                        <button class="btn btn-sga-peligro w-100" @onclick="() => ReportarIncidenciaAsync(viaje)">Enviar reporte</button>
+                    </div>
+                </div>
+            }
+        </div>
+    }
+}
+
+@code {
+    private List<ViajeModel> _viajes = new();
+    private bool _cargando = true;
+    private string? _error;
+    private string? _mensajeGlobal;
+    private bool _mensajeGlobalEsError;
+    private bool _iniciando;
+
+    private int? _incidenciaAbierta;
+    private string _tipoIncidencia = "Retraso";
+    private string _descripcionIncidencia = string.Empty;
+
+    protected override async Task OnInitializedAsync() => await CargarAsync();
+
+    private async Task CargarAsync()
+    {
+        _cargando = true;
+        var conductorId = Sesion.Usuario?.Id ?? 0;
+        var resultado = await Api.GetAsync<List<ViajeModel>>($"api/viajes/por-conductor/{conductorId}");
+        _cargando = false;
+
+        if (!resultado.EsExitoso) { _error = resultado.Error; return; }
+        _viajes = resultado.Valor ?? new();
+    }
+
+    private async Task IniciarAsync(ViajeModel viaje)
+    {
+        if (_iniciando) return;
+        _iniciando = true;
+        try
+        {
+            var dto = new EjecutarViajeModel { ViajeId = viaje.Id, ConductorId = Sesion.Usuario?.Id ?? 0 };
+            var resultado = await Api.PostAsync<ViajeModel>("api/viajes/iniciar", dto);
+            MostrarMensajeGlobal(resultado.EsExitoso, resultado.EsExitoso ? "Viaje iniciado." : resultado.Error!);
+            if (resultado.EsExitoso) await CargarAsync();
+        }
+        finally
+        {
+            _iniciando = false;
+        }
+    }
+
+    private async Task FinalizarAsync(ViajeModel viaje)
+    {
+        var dto = new EjecutarViajeModel { ViajeId = viaje.Id, ConductorId = Sesion.Usuario?.Id ?? 0 };
+        var resultado = await Api.PostAsync<ViajeModel>("api/viajes/finalizar", dto);
+        MostrarMensajeGlobal(resultado.EsExitoso, resultado.EsExitoso ? "Viaje finalizado." : resultado.Error!);
+        if (resultado.EsExitoso) await CargarAsync();
+    }
+
+    private void AlternarIncidenciaAsync(int viajeId)
+    {
+        _incidenciaAbierta = _incidenciaAbierta == viajeId ? null : viajeId;
+        _descripcionIncidencia = string.Empty;
+    }
+
+    private async Task ReportarIncidenciaAsync(ViajeModel viaje)
+    {
+        if (string.IsNullOrWhiteSpace(_descripcionIncidencia))
+        {
+            MostrarMensajeGlobal(false, "Describe la incidencia antes de enviarla.");
+            return;
+        }
+
+        var dto = new ReportarIncidenciaModel
+        {
+            ViajeId = viaje.Id,
+            ConductorId = Sesion.Usuario?.Id ?? 0,
+            Tipo = _tipoIncidencia,
+            Descripcion = _descripcionIncidencia,
+            CreadoPor = Sesion.Usuario?.Correo
+        };
+
+        var resultado = await Api.PostAsync<IncidenciaModel>("api/viajes/incidencias", dto);
+        MostrarMensajeGlobal(resultado.EsExitoso, resultado.EsExitoso ? "Incidencia reportada correctamente." : resultado.Error!);
+
+        if (resultado.EsExitoso)
+        {
+            _incidenciaAbierta = null;
+            _descripcionIncidencia = string.Empty;
+            await CargarAsync();
+        }
+    }
+
+    private bool PuedeIntentarIniciar(ViajeModel viaje)
+        => viaje.Estado == 1 || viaje.Estado == 5 && viaje.HoraInicioReal is null;
+
+    private bool EstaEnEjecucion(ViajeModel viaje)
+        => viaje.Estado == 2 || viaje.Estado == 5 && viaje.HoraInicioReal is not null;
+
+    private bool HayOtroViajeEnEjecucion(ViajeModel viajeActual)
+        => _viajes.Any(v => v.Id != viajeActual.Id && EstaEnEjecucion(v));
+
+    private void MostrarMensajeGlobal(bool exito, string mensaje)
+    {
+        _mensajeGlobal = mensaje;
+        _mensajeGlobalEsError = !exito;
+    }
+}

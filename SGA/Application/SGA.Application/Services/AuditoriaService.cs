@@ -63,7 +63,21 @@ namespace SGA.Application.Services
             return Result<IReadOnlyList<AuditoriaDto>>.Ok(registros.Select(Mapear).ToList());
         }
 
+        public async Task<Result> RegistrarAsync(int usuarioTransporteId, string accion, string entidadAfectada, string entidadId, string detalle)
+        {
+            var creacion = SGA.Domain.Rules.Auditoria.AuditoriaRules.CrearRegistro(
+                usuarioTransporteId, accion, entidadAfectada, entidadId, detalle, DateTime.Now);
+
+            if (creacion.EsFallo)
+            {
+                return Result.Fallo(creacion.Error!);
+            }
+
+            await _auditoriaRepository.AddAsync(creacion.Valor!);
+            return Result.Ok();
+        }
+
         private static AuditoriaDto Mapear(AuditoriaModel m) =>
-            new(m.Id, m.UsuarioTransporteId, m.Accion, m.EntidadAfectada, m.EntidadId, m.Detalle, m.FechaHora);
+            new(m.Id, m.UsuarioTransporteId, m.Accion, m.EntidadAfectada, m.EntidadId, m.Detalle, m.FechaHora, m.UsuarioNombre);
     }
 }

@@ -1,39 +1,28 @@
-﻿<div class="top-row ps-3 navbar navbar-dark">
-    <div class="container-fluid">
-        <a class="navbar-brand" href="">SGA.Web</a>
-        <button title="Navigation menu" class="navbar-toggler" @onclick="ToggleNavMenu">
-            <span class="navbar-toggler-icon"></span>
-        </button>
-    </div>
-</div>
+@inject SesionState Sesion
 
-<div class="@NavMenuCssClass nav-scrollable" @onclick="ToggleNavMenu">
-    <nav class="nav flex-column">
-        <div class="nav-item px-3">
-            <NavLink class="nav-link" href="" Match="NavLinkMatch.All">
-                <span class="bi bi-house-door-fill-nav-menu" aria-hidden="true"></span> Home
-            </NavLink>
-        </div>
-        <div class="nav-item px-3">
-            <NavLink class="nav-link" href="counter">
-                <span class="bi bi-plus-square-fill-nav-menu" aria-hidden="true"></span> Counter
-            </NavLink>
-        </div>
-        <div class="nav-item px-3">
-            <NavLink class="nav-link" href="weather">
-                <span class="bi bi-list-nested-nav-menu" aria-hidden="true"></span> Weather
-            </NavLink>
-        </div>
-    </nav>
-</div>
-
-@code {
-    private bool collapseNavMenu = true;
-
-    private string? NavMenuCssClass => collapseNavMenu ? "collapse" : null;
-
-    private void ToggleNavMenu()
+<nav class="sga-nav nav flex-column">
+    @if (Sesion.Usuario?.EsEstudiante == true || Sesion.Usuario?.EsEmpleado == true)
     {
-        collapseNavMenu = !collapseNavMenu;
+        <NavLink class="nav-link" href="" Match="NavLinkMatch.All">Inicio</NavLink>
+        <NavLink class="nav-link" href="estudiante/rutas">Rutas y Horarios</NavLink>
+        <NavLink class="nav-link" href="estudiante/viajes-del-dia">Viajes del Día</NavLink>
+        <NavLink class="nav-link" href="estudiante/billetera">Billetera</NavLink>
+        <NavLink class="nav-link" href="estudiante/comprar-ticket">Comprar Ticket</NavLink>
+        <NavLink class="nav-link" href="estudiante/notificaciones">Notificaciones</NavLink>
     }
-}
+    else if (Sesion.Usuario?.EsConductor == true)
+    {
+        <NavLink class="nav-link" href="" Match="NavLinkMatch.All">Inicio</NavLink>
+        <NavLink class="nav-link" href="conductor/mis-viajes">Mis Viajes</NavLink>
+        <NavLink class="nav-link" href="conductor/validar-acceso">Validar Abordaje</NavLink>
+        <NavLink class="nav-link" href="notificaciones">Notificaciones</NavLink>
+    }
+    else if (Sesion.Usuario?.EsAdministradorTransporte == true)
+    {
+        <NavLink class="nav-link" href="" Match="NavLinkMatch.All">Inicio</NavLink>
+        <NavLink class="nav-link" href="admin/autobuses">Autobuses</NavLink>
+        <NavLink class="nav-link" href="admin/incidencias">Incidencias</NavLink>
+        <NavLink class="nav-link" href="notificaciones">Notificaciones</NavLink>
+    }
+
+</nav>

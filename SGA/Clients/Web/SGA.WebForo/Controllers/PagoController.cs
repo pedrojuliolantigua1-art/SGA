@@ -87,7 +87,6 @@ namespace SGA.WebForo.Controllers
                 estudiante.Valor!.Id,
                 monto,
                 tipoPago,
-                numeroComprobante,
                 fechaHora,
                 registradoPorId.Value,
                 HttpContext.Session.GetString("UsuarioNombre")

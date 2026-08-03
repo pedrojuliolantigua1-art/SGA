@@ -76,10 +76,25 @@ namespace SGA.Infrastructure.Persistence.Repositories
                     AreaAdministrativa = a.AreaAdministrativa
                 }).ToListAsync();
 
+            var administradores = await _context.AdministradoresTransporte.AsNoTracking()
+                .Select(a => new AdministradorTransporteModel
+                {
+                    Id = a.Id,
+                    Nombre = a.Nombre,
+                    Apellido = a.Apellido,
+                    Correo = a.Correo,
+                    Telefono = a.Telefono,
+                    Estado = a.Estado,
+                    RolSistema = a.RolSistema,
+                    Departamento = a.Departamento,
+                    Cargo = a.Cargo
+                }).ToListAsync();
+
             return estudiantes.Cast<UsuarioModel>()
                 .Concat(conductores)
                 .Concat(docentes)
                 .Concat(administrativos)
+                .Concat(administradores)
                 .ToList();
         }
 
@@ -146,15 +161,29 @@ namespace SGA.Infrastructure.Persistence.Repositories
                     CodigoEmpleado = a.CodigoEmpleado, Departamento = a.Departamento, Cargo = a.Cargo,
                     AreaAdministrativa = a.AreaAdministrativa
                 }).FirstOrDefaultAsync();
+            if (administrativo is not null) return administrativo;
 
-            return administrativo;
+            return await _context.AdministradoresTransporte.AsNoTracking()
+                .Where(a => a.Id == id)
+                .Select(a => new AdministradorTransporteModel
+                {
+                    Id = a.Id, Nombre = a.Nombre, Apellido = a.Apellido, Correo = a.Correo,
+                    Telefono = a.Telefono, Estado = a.Estado, RolSistema = a.RolSistema,
+                    Departamento = a.Departamento, Cargo = a.Cargo
+                }).FirstOrDefaultAsync();
         }
         public async Task<UsuarioModel?> GetbyCorreo(string correo)
         {
             var correoNormalizado = correo.Trim().ToLower();
-            var baseUsuario = await _context.UsuariosTransporte.AsNoTracking()
-                .FirstOrDefaultAsync(u => u.Correo!.ToLower() == correoNormalizado);
-            return baseUsuario is null ? null : await GetByIdAsync(baseUsuario.Id);
+
+            // Seleccionamos solo el Id para evitar que EF Core ejecute el discriminador TPT
+            // (LEFT JOIN a todas las tablas hijas) y falle si hay alguna fila sin hijo.
+            var id = await _context.UsuariosTransporte.AsNoTracking()
+                .Where(u => u.Correo!.ToLower() == correoNormalizado)
+                .Select(u => (int?)u.Id)
+                .FirstOrDefaultAsync();
+
+            return id is null ? null : await GetByIdAsync(id.Value);
         }
 
         public async Task<UsuarioModel> GetbyRol(RolUsuario rol)
@@ -166,11 +195,26 @@ namespace SGA.Infrastructure.Persistence.Repositories
             return (await GetByIdAsync(id))!;
         }
 
+        public async Task<IReadOnlyList<int>> ObtenerIdsPorRol(RolUsuario rol) =>
+            await _context.UsuariosTransporte.AsNoTracking()
+                .Where(u => u.RolSistema == rol)
+                .Select(u => u.Id)
+                .ToListAsync();
+
         public async Task<bool> ValidarPassword(string correo, string passwordHash)
         {
             var correoNormalizado = correo.Trim().ToLower();
             return await _context.UsuariosTransporte.AsNoTracking()
                 .AnyAsync(u => u.Correo!.ToLower() == correoNormalizado && u.PasswordHash == passwordHash.Trim());
+        }
+
+        public async Task<string?> ObtenerPasswordHashPorCorreoAsync(string correo)
+        {
+            var correoNormalizado = correo.Trim().ToLower();
+            return await _context.UsuariosTransporte.AsNoTracking()
+                .Where(u => u.Correo!.ToLower() == correoNormalizado)
+                .Select(u => u.PasswordHash)
+                .FirstOrDefaultAsync();
         }
 
         public async Task<UsuarioModel?> GetByMatricula(string matricula) =>

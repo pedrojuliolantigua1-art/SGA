@@ -15,8 +15,15 @@ namespace SGA.Application.Services
     public sealed class RutaService : IRutaService
     {
         private readonly IRutaRepository _rutaRepository;
+        private readonly IAuditoriaService _auditoriaService;
+        private readonly ICurrentUserService _currentUser;
 
-        public RutaService(IRutaRepository rutaRepository) => _rutaRepository = rutaRepository;
+        public RutaService(IRutaRepository rutaRepository, IAuditoriaService auditoriaService, ICurrentUserService currentUser)
+        {
+            _rutaRepository = rutaRepository;
+            _auditoriaService = auditoriaService;
+            _currentUser = currentUser;
+        }
 
         public async Task<Result<IReadOnlyList<RutaDto>>> ListarTodasAsync()
         {
@@ -69,6 +76,9 @@ namespace SGA.Application.Services
                 return Result<RutaDto>.Fallo(validacion.Error!);
 
             await _rutaRepository.AddAsync(ruta);
+
+            await _auditoriaService.RegistrarAsync(_currentUser.UsuarioId, "RutaCreada", "Ruta", ruta.Id.ToString(), $"Ruta {ruta.Nombre} creada.");
+
             return Result<RutaDto>.Ok(MapearRuta(ruta));
         }
 
@@ -91,6 +101,9 @@ namespace SGA.Application.Services
                 return Result<RutaDto>.Fallo(validacion.Error!);
 
             await _rutaRepository.UpdateAsync(ruta);
+
+            await _auditoriaService.RegistrarAsync(_currentUser.UsuarioId, "RutaActualizada", "Ruta", rutaId.ToString(), $"Ruta {ruta.Nombre} actualizada.");
+
             return Result<RutaDto>.Ok(MapearRuta(ruta));
         }
 
@@ -109,6 +122,9 @@ namespace SGA.Application.Services
             };
 
             await _rutaRepository.DeleteAsync(ruta);
+
+            await _auditoriaService.RegistrarAsync(_currentUser.UsuarioId, "RutaEliminada", "Ruta", rutaId.ToString(), $"Ruta eliminada por {dto.EliminadoPor}. Motivo: {dto.Motivo}");
+
             return Result.Ok();
         }
 

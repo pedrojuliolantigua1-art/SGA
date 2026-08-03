@@ -1,8 +1,10 @@
 using SGA.Application.Common;
+using SGA.Application.DTOs.Notificaciones;
 using SGA.Application.DTOs.Viajes;
 using SGA.Application.Interfaces.Services;
 using SGA.Domain.Entities.Transporte;
 using SGA.Domain.Entities.Viajes;
+using SGA.Domain.Enum;
 using SGA.Domain.Error;
 using SGA.Domain.Models.Transporte;
 using SGA.Domain.Models.Usuarios;
@@ -20,19 +22,32 @@ namespace SGA.Application.Services
         private readonly IHorarioRutaRepository _horarioRutaRepository;
         private readonly IAutobusRepository _autobusRepository;
         private readonly IUsuarioRepository _usuarioRepository;
+        private readonly IAccesoRepository _accesoRepository;
+        private readonly IAuditoriaService _auditoriaService;
+        private readonly INotificacionService _notificacionService;
+        private readonly ICurrentUserService _currentUser;
 
         public ViajeService(
             IViajeRepository viajeRepository,
             IRutaRepository rutaRepository,
             IHorarioRutaRepository horarioRutaRepository,
             IAutobusRepository autobusRepository,
-            IUsuarioRepository usuarioRepository)
+            IUsuarioRepository usuarioRepository,
+            IAccesoRepository accesoRepository,
+            IAuditoriaService auditoriaService,
+            INotificacionService notificacionService,
+            ICurrentUserService currentUser
+            )
         {
             _viajeRepository = viajeRepository;
             _rutaRepository = rutaRepository;
             _horarioRutaRepository = horarioRutaRepository;
             _autobusRepository = autobusRepository;
             _usuarioRepository = usuarioRepository;
+            _accesoRepository = accesoRepository;
+            _auditoriaService = auditoriaService;
+            _notificacionService = notificacionService;
+            _currentUser = currentUser;
         }
 
         public async Task<Result<IReadOnlyList<ViajeDto>>> ListarPorFechaAsync(DateTime fecha)
@@ -105,6 +120,37 @@ namespace SGA.Application.Services
             return Result<IReadOnlyList<ViajeDto>>.Ok(viajes.Select(MapearViaje).ToList());
         }
 
+        public async Task<Result<ProgramarSemanaResultadoDto>> ProgramarSemanaAsync(ProgramarSemanaDto dto)
+        {
+            if (dto.Dias is null || dto.Dias.Count == 0)
+                return Result<ProgramarSemanaResultadoDto>.Fallo(
+                    ApplicationErrors.OperacionInvalida("Selecciona al menos un dia de la semana."));
+
+            // Lunes de la semana que contiene FechaReferenciaSemana.
+            var diaDeLaSemana = (int)dto.FechaReferenciaSemana.DayOfWeek;
+            var offsetHastaLunes = diaDeLaSemana == 0 ? 6 : diaDeLaSemana - 1;
+            var lunes = dto.FechaReferenciaSemana.Date.AddDays(-offsetHastaLunes);
+
+            var creados = new List<ViajeDto>();
+            var errores = new List<string>();
+
+            foreach (var dia in dto.Dias.Distinct())
+            {
+                var offsetDelDia = (int)dia == 0 ? 6 : (int)dia - 1;
+                var fecha = lunes.AddDays(offsetDelDia);
+
+                var resultado = await ProgramarAsync(new ProgramarViajeDto(
+                    dto.RutaId, dto.HorarioRutaId, dto.AutobusId, dto.ConductorId, fecha, dto.CreadoPor));
+
+                if (resultado.EsExitoso)
+                    creados.Add(resultado.Valor!);
+                else
+                    errores.Add($"{fecha:dd/MM} ({dia}): {resultado.Error}");
+            }
+
+            return Result<ProgramarSemanaResultadoDto>.Ok(new ProgramarSemanaResultadoDto(creados, errores));
+        }
+
         public async Task<Result<ViajeDto>> ProgramarAsync(ProgramarViajeDto dto)
         {
             var datosValidos = ValidationGeneral.Combinar(
@@ -166,6 +212,7 @@ namespace SGA.Application.Services
             viaje.CreadoPor = dto.CreadoPor;
 
             await _viajeRepository.AddAsync(viaje);
+            await _auditoriaService.RegistrarAsync(_currentUser.UsuarioId, "ViajeProgramado", "Viaje", viaje.Id.ToString(), $"Viaje programado para la ruta {dto.RutaId} el {dto.Fecha:d}, conductor {dto.ConductorId}, autobus {dto.AutobusId}.");
             return Result<ViajeDto>.Ok(MapearViaje(viaje));
         }
 
@@ -187,6 +234,18 @@ namespace SGA.Application.Services
                 return Result<ViajeDto>.Fallo(ApplicationErrors.NoEncontrado("el viaje"));
             }
 
+            var otroViajeEnCurso = (await _viajeRepository.GetbyConductor(dto.ConductorId))
+                .FirstOrDefault(v =>
+                    v.Id != dto.ViajeId &&
+                    (v.Estado == EstadoViaje.EnCurso ||
+                     v.Estado == EstadoViaje.Retrasado && v.HoraInicioReal is not null));
+
+            if (otroViajeEnCurso is not null)
+            {
+                return Result<ViajeDto>.Fallo(ApplicationErrors.OperacionInvalida(
+                    $"El conductor ya tiene el viaje #{otroViajeEnCurso.Id} en curso. Debe finalizarlo antes de iniciar otro."));
+            }
+
             var viaje = ConvertirViaje(viajeModel);
             var validacion = ViajeEjecucionRules.Iniciar(viaje, dto.ConductorId, dto.FechaHora);
 
@@ -198,6 +257,15 @@ namespace SGA.Application.Services
             viaje.FechaModificacion = DateTime.UtcNow;
 
             await _viajeRepository.UpdateAsync(viaje);
+            await _auditoriaService.RegistrarAsync(dto.ConductorId, "ViajeIniciado", "Viaje", dto.ViajeId.ToString(), $"El conductor {dto.ConductorId} inicio el viaje.");
+            await NotificarUsuariosVinculadosAsync(
+                viaje.Id,
+                "ViajeIniciado",
+                $"Viaje #{viaje.Id} iniciado",
+                $"Tu viaje #{viaje.Id} ya inicio. Puedes preparar tu abordaje.",
+                dto.FechaHora,
+                $"Conductor {dto.ConductorId}");
+
             return Result<ViajeDto>.Ok(MapearViaje(viaje));
         }
 
@@ -230,6 +298,7 @@ namespace SGA.Application.Services
             viaje.FechaModificacion = DateTime.UtcNow;
 
             await _viajeRepository.UpdateAsync(viaje);
+            await _auditoriaService.RegistrarAsync(dto.ConductorId, "ViajeFinalizado", "Viaje", dto.ViajeId.ToString(), $"El conductor {dto.ConductorId} finalizo el viaje.");
             return Result<ViajeDto>.Ok(MapearViaje(viaje));
         }
 
@@ -260,6 +329,7 @@ namespace SGA.Application.Services
             viaje.FechaModificacion = DateTime.UtcNow;
 
             await _viajeRepository.UpdateAsync(viaje);
+            await _auditoriaService.RegistrarAsync(viaje.ConductorId, "ViajeCancelado", "Viaje", dto.ViajeId.ToString(), $"Viaje cancelado. Motivo: {dto.Motivo}");
             return Result<ViajeDto>.Ok(MapearViaje(viaje));
         }
 
@@ -288,7 +358,8 @@ namespace SGA.Application.Services
                 dto.ConductorId,
                 dto.Tipo,
                 dto.Descripcion,
-                dto.FechaHora);
+                dto.FechaHora,
+                validarConductor: !dto.EsAdmin);
 
             if (incidenciaCreada.EsFallo)
             {
@@ -296,6 +367,12 @@ namespace SGA.Application.Services
             }
 
             var incidencia = incidenciaCreada.Valor!;
+            if (dto.EsAdmin)
+            {
+                // El administrador registra la incidencia a nombre del conductor del viaje.
+                incidencia.ConductorId = viaje.ConductorId;
+            }
+
             incidencia.CreadoPor = dto.CreadoPor;
             incidencia.FechaCreacion = DateTime.UtcNow;
 
@@ -306,7 +383,74 @@ namespace SGA.Application.Services
             }
 
             await _viajeRepository.AddIncidencia(incidencia);
+            await _auditoriaService.RegistrarAsync(dto.ConductorId, "IncidenciaReportada", "Viaje", dto.ViajeId.ToString(), $"Incidencia ({dto.Tipo}) reportada por {dto.CreadoPor ?? $"usuario {dto.ConductorId}"}: {dto.Descripcion}");
+
+            var notificadoPor = dto.CreadoPor ?? (dto.EsAdmin ? "Administrador" : $"Conductor {dto.ConductorId}");
+
+            await NotificarUsuariosVinculadosAsync(
+                incidencia.ViajeId,
+                "IncidenciaViaje",
+                $"Incidencia en viaje #{incidencia.ViajeId}",
+                $"{incidencia.Tipo}: {incidencia.Descripcion}",
+                incidencia.FechaHora,
+                notificadoPor);
+
+            await NotificarAdministradoresAsync(
+                "IncidenciaViaje",
+                $"Incidencia en viaje #{incidencia.ViajeId}",
+                $"{incidencia.Tipo}: {incidencia.Descripcion}",
+                incidencia.FechaHora,
+                notificadoPor);
+
             return Result<IncidenciaDto>.Ok(MapearIncidencia(incidencia));
+        }
+
+        private async Task NotificarUsuariosVinculadosAsync(
+            int viajeId,
+            string tipo,
+            string titulo,
+            string mensaje,
+            DateTime fechaHora,
+            string creadoPor)
+        {
+            var accesos = await _accesoRepository.GetByViaje(viajeId);
+            var usuarios = accesos
+                .Where(a => a.ResultadoAcceso == ResultadoAcceso.Permitido)
+                .Select(a => a.UsuarioTransporteId)
+                .Distinct()
+                .ToList();
+
+            foreach (var usuarioId in usuarios)
+            {
+                await _notificacionService.CrearAsync(new CrearNotificacionDto(
+                    usuarioId,
+                    tipo,
+                    titulo,
+                    mensaje,
+                    fechaHora,
+                    creadoPor));
+            }
+        }
+
+        private async Task NotificarAdministradoresAsync(
+            string tipo,
+            string titulo,
+            string mensaje,
+            DateTime fechaHora,
+            string creadoPor)
+        {
+            var idsAdministradores = await _usuarioRepository.ObtenerIdsPorRol(RolUsuario.AdministradorTransporte);
+
+            foreach (var adminId in idsAdministradores)
+            {
+                await _notificacionService.CrearAsync(new CrearNotificacionDto(
+                    adminId,
+                    tipo,
+                    titulo,
+                    mensaje,
+                    fechaHora,
+                    creadoPor));
+            }
         }
 
         private static Ruta ConvertirRuta(RutaModel model) => new()
@@ -410,5 +554,21 @@ namespace SGA.Application.Services
                 incidencia.Tipo,
                 incidencia.Descripcion,
                 incidencia.FechaHora);
+
+        private static IncidenciaDto MapearIncidencia(IncidenciaModel incidencia) =>
+            new(
+                incidencia.Id,
+                incidencia.ViajeId,
+                incidencia.ConductorId,
+                incidencia.Tipo,
+                incidencia.Descripcion,
+                incidencia.FechaHora,
+                incidencia.ConductorNombre);
+
+        public async Task<Result<IReadOnlyList<IncidenciaDto>>> ListarIncidenciasPorPeriodoAsync(DateTime desde, DateTime hasta)
+        {
+            var incidencias = await _viajeRepository.GetIncidenciasbyPeriodo(desde, hasta);
+            return Result<IReadOnlyList<IncidenciaDto>>.Ok(incidencias.Select(MapearIncidencia).ToList());
+        }
     }
 }

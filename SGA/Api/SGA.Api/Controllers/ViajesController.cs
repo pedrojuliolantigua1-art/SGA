@@ -2,9 +2,11 @@ using Microsoft.AspNetCore.Mvc;
 using SGA.Api.Common;
 using SGA.Application.DTOs.Viajes;
 using SGA.Application.Interfaces.Services;
+using Microsoft.AspNetCore.Authorization;
 
 namespace SGA.Api.Controllers
 {
+    [Authorize]
     [ApiController]
     [Route("api/viajes")]
     public sealed class ViajesController : ControllerBase
@@ -49,6 +51,11 @@ namespace SGA.Api.Controllers
         public async Task<IActionResult> Programar([FromBody] ProgramarViajeDto dto)
             => this.AResultadoCreado(await _viajeService.ProgramarAsync(dto));
 
+        /// <summary>Programa el mismo viaje para varios dias de una semana en una sola operacion.</summary>
+        [HttpPost("programar-semana")]
+        public async Task<IActionResult> ProgramarSemana([FromBody] ProgramarSemanaDto dto)
+            => this.AResultadoCreado(await _viajeService.ProgramarSemanaAsync(dto));
+
         /// <summary>Marca el inicio real de un viaje.</summary>
         [HttpPost("iniciar")]
         public async Task<IActionResult> Iniciar([FromBody] EjecutarViajeDto dto)
@@ -68,5 +75,10 @@ namespace SGA.Api.Controllers
         [HttpPost("incidencias")]
         public async Task<IActionResult> ReportarIncidencia([FromBody] ReportarIncidenciaDto dto)
             => this.AResultadoCreado(await _viajeService.ReportarIncidenciaAsync(dto));
+
+        /// <summary>Lista las incidencias registradas en un periodo (reporte).</summary>
+        [HttpGet("incidencias/por-periodo")]
+        public async Task<IActionResult> ListarIncidenciasPorPeriodo([FromQuery] DateTime desde, [FromQuery] DateTime hasta)
+            => this.AResultado(await _viajeService.ListarIncidenciasPorPeriodoAsync(desde, hasta));
     }
 }

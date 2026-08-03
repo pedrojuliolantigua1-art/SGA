@@ -10,12 +10,24 @@ namespace SGA.Api.Controllers
     public sealed class AuthController : ControllerBase
     {
         private readonly IAuthService _authService;
+        private readonly IJwtService _jwtService;
 
-        public AuthController(IAuthService authService)
-            => _authService = authService;
+        public AuthController(IAuthService authService, IJwtService jwtService)
+        {
+            _authService = authService;
+            _jwtService = jwtService;
+        }
 
         [HttpPost("login")]
         public async Task<IActionResult> Login([FromBody] LoginDto dto)
-            => this.AResultado(await _authService.IniciarSesionAsync(dto));
+        {
+            var resultado = await _authService.IniciarSesionAsync(dto);
+            if (!resultado.EsExitoso)
+                return this.AProblema(resultado.Error!);
+
+            var sesion = resultado.Valor!;
+            var token = _jwtService.GenerarToken(sesion);
+            return Ok(new LoginResponseDto(token, "Bearer", sesion));
+        }
     }
 }

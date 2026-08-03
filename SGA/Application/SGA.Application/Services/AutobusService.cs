@@ -13,8 +13,15 @@ namespace SGA.Application.Services
     public sealed class AutobusService : IAutobusService
     {
         private readonly IAutobusRepository _autobusRepository;
+        private readonly IAuditoriaService _auditoriaService;
+        private readonly ICurrentUserService _currentUser;
 
-        public AutobusService(IAutobusRepository autobusRepository) => _autobusRepository = autobusRepository;
+        public AutobusService(IAutobusRepository autobusRepository, IAuditoriaService auditoriaService, ICurrentUserService currentUser)
+        {
+            _autobusRepository = autobusRepository;
+            _auditoriaService = auditoriaService;
+            _currentUser = currentUser;
+        }
 
         public async Task<Result<IReadOnlyList<AutobusDto>>> ListarTodosAsync()
         {
@@ -65,6 +72,10 @@ namespace SGA.Application.Services
                 return Result<AutobusDto>.Fallo(DomainErrors.CatalogoTransporte.PlacaDuplicada);
 
             await _autobusRepository.AddAsync(autobus);
+
+            await _auditoriaService.RegistrarAsync(_currentUser.UsuarioId, "AutobusCreado", "Autobus", autobus.Id.ToString(),
+                $"Autobus {autobus.Placa} ({autobus.Marca} {autobus.Modelo}) registrado.");
+
             return Result<AutobusDto>.Ok(MapearAutobus(autobus));
         }
 
@@ -93,6 +104,10 @@ namespace SGA.Application.Services
                 return Result<AutobusDto>.Fallo(DomainErrors.CatalogoTransporte.PlacaDuplicada);
 
             await _autobusRepository.UpdateAsync(autobus);
+
+            await _auditoriaService.RegistrarAsync(_currentUser.UsuarioId, "AutobusActualizado", "Autobus", autobusId.ToString(),
+                $"Autobus {autobus.Placa} actualizado.");
+
             return Result<AutobusDto>.Ok(MapearAutobus(autobus));
         }
 
@@ -113,6 +128,10 @@ namespace SGA.Application.Services
                 return Result<AutobusDto>.Fallo(validacion.Error!);
 
             await _autobusRepository.UpdateAsync(autobus);
+
+            await _auditoriaService.RegistrarAsync(_currentUser.UsuarioId, "AutobusCambioEstado", "Autobus", autobusId.ToString(),
+                $"Estado del autobus {autobus.Placa} cambiado a {dto.NuevoEstado}.");
+
             return Result<AutobusDto>.Ok(MapearAutobus(autobus));
         }
 
@@ -128,6 +147,10 @@ namespace SGA.Application.Services
                 FechaEliminacion = DateTime.UtcNow, EliminadoPor = dto.EliminadoPor
             };
             await _autobusRepository.DeleteAsync(autobus);
+
+            await _auditoriaService.RegistrarAsync(_currentUser.UsuarioId, "AutobusEliminado", "Autobus", autobusId.ToString(),
+                $"Autobus {actual.Placa} eliminado por {dto.EliminadoPor}. Motivo: {dto.Motivo}");
+
             return Result.Ok();
         }
 

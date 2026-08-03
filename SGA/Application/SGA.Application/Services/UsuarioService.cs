@@ -14,9 +14,13 @@ namespace SGA.Application.Services
     public sealed class UsuarioService : IUsuarioService
     {
         private readonly IUsuarioRepository _usuarioRepository;
+        private readonly IAuditoriaService _auditoriaService;
 
-        public UsuarioService(IUsuarioRepository usuarioRepository)
-            => _usuarioRepository = usuarioRepository;
+        public UsuarioService(IUsuarioRepository usuarioRepository, IAuditoriaService auditoriaService)
+        {
+            _usuarioRepository = usuarioRepository;
+            _auditoriaService = auditoriaService;
+        }
 
         public async Task<Result<IReadOnlyList<UsuarioResumenDto>>> ListarTodosAsync()
         {
@@ -68,7 +72,8 @@ namespace SGA.Application.Services
             if (validacion.EsFallo)
                 return Result<bool>.Fallo(validacion.Error!);
 
-            var valido = await _usuarioRepository.ValidarPassword(dto.Correo, dto.PasswordHash);
+            var hashGuardado = await _usuarioRepository.ObtenerPasswordHashPorCorreoAsync(dto.Correo);
+            var valido = SGA.Domain.Common.PasswordHasher.Verificar(dto.PasswordHash, hashGuardado);
             return Result<bool>.Ok(valido);
         }
 
@@ -95,7 +100,7 @@ namespace SGA.Application.Services
                 Apellido = dto.Apellido,
                 Correo = dto.Correo,
                 Telefono = dto.Telefono,
-                PasswordHash = dto.PasswordHash,
+                PasswordHash = SGA.Domain.Common.PasswordHasher.Hash(dto.PasswordHash ?? string.Empty),
                 Matricula = dto.Matricula,
                 Carrera = dto.Carrera,
                 TipoUsuario = "Estudiante",
@@ -107,11 +112,16 @@ namespace SGA.Application.Services
             if (validacion.EsFallo)
                 return Result<EstudianteDto>.Fallo(validacion.Error!);
 
+            var matriculaExistente = await _usuarioRepository.GetByMatricula(dto.Matricula);
+            if (matriculaExistente is not null)
+                return Result<EstudianteDto>.Fallo(DomainErrors.Usuarios.Matricula);
+
             var existente = await _usuarioRepository.GetbyCorreo(dto.Correo ?? string.Empty);
             if (existente is not null)
                 return Result<EstudianteDto>.Fallo(DomainErrors.Usuarios.CorreoDuplicado);
 
             await _usuarioRepository.AddAsync(estudiante);
+            await _auditoriaService.RegistrarAsync(estudiante.Id, "EstudianteRegistrado", "Usuario", estudiante.Id.ToString(), $"Estudiante registrado: {estudiante.Nombre} {estudiante.Apellido} (matricula {estudiante.Matricula})");
             return Result<EstudianteDto>.Ok(MapearEstudiante(estudiante));
         }
 
@@ -155,7 +165,7 @@ namespace SGA.Application.Services
                 Apellido = dto.Apellido,
                 Correo = dto.Correo,
                 Telefono = dto.Telefono,
-                PasswordHash = dto.PasswordHash,
+                PasswordHash = SGA.Domain.Common.PasswordHasher.Hash(dto.PasswordHash ?? string.Empty),
                 CodigoEmpleado = dto.CodigoEmpleado,
                 Departamento = dto.Departamento,
                 Cargo = dto.Cargo,
@@ -179,6 +189,7 @@ namespace SGA.Application.Services
                 return Result<EmpleadoDocenteDto>.Fallo(DomainErrors.Usuarios.CodigoEmpleadoDuplicado);
 
             await _usuarioRepository.AddAsync(docente);
+            await _auditoriaService.RegistrarAsync(docente.Id, "EmpleadoDocenteRegistrado", "Usuario", docente.Id.ToString(), $"Empleado docente registrado: {docente.Nombre} {docente.Apellido}");
             return Result<EmpleadoDocenteDto>.Ok(MapearEmpleadoDocente(docente));
         }
 
@@ -229,7 +240,7 @@ namespace SGA.Application.Services
                 Apellido = dto.Apellido,
                 Correo = dto.Correo,
                 Telefono = dto.Telefono,
-                PasswordHash = dto.PasswordHash,
+                PasswordHash = SGA.Domain.Common.PasswordHasher.Hash(dto.PasswordHash ?? string.Empty),
                 CodigoEmpleado = dto.CodigoEmpleado,
                 Departamento = dto.Departamento,
                 Cargo = dto.Cargo,
@@ -252,6 +263,7 @@ namespace SGA.Application.Services
                 return Result<EmpleadoAdministrativoDto>.Fallo(DomainErrors.Usuarios.CodigoEmpleadoDuplicado);
 
             await _usuarioRepository.AddAsync(administrativo);
+            await _auditoriaService.RegistrarAsync(administrativo.Id, "EmpleadoAdministrativoRegistrado", "Usuario", administrativo.Id.ToString(), $"Empleado administrativo registrado: {administrativo.Nombre} {administrativo.Apellido}");
             return Result<EmpleadoAdministrativoDto>.Ok(MapearEmpleadoAdministrativo(administrativo));
         }
 
@@ -301,7 +313,7 @@ namespace SGA.Application.Services
                 Apellido = dto.Apellido,
                 Correo = dto.Correo,
                 Telefono = dto.Telefono,
-                PasswordHash = dto.PasswordHash,
+                PasswordHash = SGA.Domain.Common.PasswordHasher.Hash(dto.PasswordHash ?? string.Empty),
                 NumeroLicencia = dto.NumeroLicencia,
                 FechaVencimientoLicencia = dto.FechaVencimientoLicencia,
                 Disponible = true,
@@ -323,6 +335,7 @@ namespace SGA.Application.Services
                 return Result<ConductorDto>.Fallo(DomainErrors.CatalogoTransporte.LicenciaDuplicada);
 
             await _usuarioRepository.AddAsync(conductor);
+            await _auditoriaService.RegistrarAsync(conductor.Id, "ConductorRegistrado", "Usuario", conductor.Id.ToString(), $"Conductor registrado: {conductor.Nombre} {conductor.Apellido}");
             return Result<ConductorDto>.Ok(MapearConductor(conductor));
         }
 
@@ -400,6 +413,7 @@ namespace SGA.Application.Services
             entity.EliminadoPor = dto.EliminadoPor;
 
             await _usuarioRepository.DeleteAsync(entity);
+            await _auditoriaService.RegistrarAsync(id, "UsuarioEliminado", "Usuario", id.ToString(), $"Usuario dado de baja por {dto.EliminadoPor}. Motivo: {dto.Motivo}");
             return Result.Ok();
         }
 
@@ -422,6 +436,7 @@ namespace SGA.Application.Services
                 EmpleadoDocenteModel => "EmpleadoDocente",
                 EmpleadoAdministrativoModel => "EmpleadoAdministrativo",
                 EmpleadoModel => "Empleado",
+                AdministradorTransporteModel => "AdministradorTransporte",
                 _ => m.GetType().Name
             },
             m.RolSistema);
@@ -440,5 +455,87 @@ namespace SGA.Application.Services
 
         private static ConductorDto MapearConductor(ConductorModel c) =>
             new(c.Id, c.Nombre, c.Apellido, c.Correo, c.Telefono, c.Estado, c.NumeroLicencia, c.FechaVencimientoLicencia, c.Disponible);
+
+        private static AdministradorTransporteDto MapearAdmin(AdministradorTransporte a) =>
+            new(a.Id, a.Nombre, a.Apellido, a.Correo, a.Telefono, a.Estado, a.Departamento, a.Cargo);
+
+        private static AdministradorTransporteDto MapearAdmin(AdministradorTransporteModel a) =>
+            new(a.Id, a.Nombre, a.Apellido, a.Correo, a.Telefono, a.Estado, a.Departamento, a.Cargo);
+
+        // ─── Administrador de Transporte ─────────────────────────────────────
+        public async Task<Result<AdministradorTransporteDto>> RegistrarAdministradorTransporteAsync(CrearAdministradorTransporteDto dto)
+        {
+            if (string.IsNullOrWhiteSpace(dto.Nombre) || string.IsNullOrWhiteSpace(dto.Correo))
+                return Result<AdministradorTransporteDto>.Fallo(DomainErrors.General.CampoRequerido("Nombre y correo"));
+
+            var existente = await _usuarioRepository.GetbyCorreo(dto.Correo ?? string.Empty);
+            if (existente is not null)
+                return Result<AdministradorTransporteDto>.Fallo(DomainErrors.Usuarios.CorreoDuplicado);
+
+            var admin = new AdministradorTransporte
+            {
+                Nombre = dto.Nombre?.Trim(),
+                Apellido = dto.Apellido?.Trim(),
+                Correo = dto.Correo?.Trim().ToLower(),
+                Telefono = dto.Telefono?.Trim(),
+                PasswordHash = SGA.Domain.Common.PasswordHasher.Hash(dto.PasswordHash ?? string.Empty),
+                Departamento = dto.Departamento?.Trim(),
+                Cargo = dto.Cargo?.Trim(),
+                TipoUsuario = "AdministradorTransporte",
+                RolSistema = SGA.Domain.Enum.RolUsuario.AdministradorTransporte,
+                Estado = "Activo",
+                CreadoPor = dto.CreadoPor
+            };
+
+            await _usuarioRepository.AddAsync(admin);
+            await _auditoriaService.RegistrarAsync(
+                admin.Id, "AdminTransporteRegistrado", "Usuario", admin.Id.ToString(),
+                $"Administrador de Transporte registrado: {admin.Nombre} {admin.Apellido} ({admin.Correo})");
+
+            return Result<AdministradorTransporteDto>.Ok(MapearAdmin(admin));
+        }
+
+        public async Task<Result<AdministradorTransporteDto>> ActualizarAdministradorTransporteAsync(int id, ActualizarAdministradorTransporteDto dto)
+        {
+            var actual = await _usuarioRepository.GetByIdAsync(id);
+            if (actual is not AdministradorTransporteModel)
+                return Result<AdministradorTransporteDto>.Fallo(ApplicationErrors.NoEncontrado("el administrador"));
+
+            var existente = await _usuarioRepository.GetbyCorreo(dto.Correo ?? string.Empty);
+            if (existente is not null && existente.Id != id)
+                return Result<AdministradorTransporteDto>.Fallo(DomainErrors.Usuarios.CorreoDuplicado);
+
+            var admin = new AdministradorTransporte
+            {
+                Id = id,
+                Nombre = dto.Nombre?.Trim(),
+                Apellido = dto.Apellido?.Trim(),
+                Correo = dto.Correo?.Trim().ToLower(),
+                Telefono = dto.Telefono?.Trim(),
+                Departamento = dto.Departamento?.Trim(),
+                Cargo = dto.Cargo?.Trim(),
+                TipoUsuario = "AdministradorTransporte",
+                RolSistema = SGA.Domain.Enum.RolUsuario.AdministradorTransporte,
+                Estado = actual.Estado
+            };
+
+            await _usuarioRepository.UpdateAsync(admin);
+            return Result<AdministradorTransporteDto>.Ok(MapearAdmin(admin));
+        }
+
+        public async Task<Result<AdministradorTransporteDto>> ObtenerAdministradorPorIdAsync(int id)
+        {
+            var usuario = await _usuarioRepository.GetByIdAsync(id);
+            return usuario is not AdministradorTransporteModel admin
+                ? Result<AdministradorTransporteDto>.Fallo(ApplicationErrors.NoEncontrado("el administrador"))
+                : Result<AdministradorTransporteDto>.Ok(MapearAdmin(admin));
+        }
+
+        public async Task<Result<IReadOnlyList<AdministradorTransporteDto>>> ListarAdministradoresAsync()
+        {
+            var todos = await _usuarioRepository.GetAllAsync();
+            var admins = todos.OfType<AdministradorTransporteModel>().Select(MapearAdmin).ToList();
+            return Result<IReadOnlyList<AdministradorTransporteDto>>.Ok(admins);
+        }
     }
 }

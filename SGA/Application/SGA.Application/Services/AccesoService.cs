@@ -25,17 +25,20 @@ namespace SGA.Application.Services
         private readonly IUsuarioRepository _usuarioRepository;
         private readonly IAutorizacionRepository _autorizacionRepository;
         private readonly IViajeRepository _viajeRepository;
+        private readonly IAuditoriaService _auditoriaService;
 
         public AccesoService(
             IAccesoRepository accesoRepository,
             IUsuarioRepository usuarioRepository,
             IAutorizacionRepository autorizacionRepository,
-            IViajeRepository viajeRepository)
+            IViajeRepository viajeRepository,
+            IAuditoriaService auditoriaService)
         {
             _accesoRepository = accesoRepository;
             _usuarioRepository = usuarioRepository;
             _autorizacionRepository = autorizacionRepository;
             _viajeRepository = viajeRepository;
+            _auditoriaService = auditoriaService;
         }
 
         public async Task<Result<AccesoDto>> RegistrarAccesoAsync(RegistrarAccesoDto dto)
@@ -107,6 +110,15 @@ namespace SGA.Application.Services
             }
 
             await _accesoRepository.AddAsync(registro);
+
+            await _auditoriaService.RegistrarAsync(
+                dto.ValidadoPorUsuarioId,
+                registro.ResultadoAcceso == ResultadoAcceso.Permitido ? "AccesoPermitido" : "AccesoRechazado",
+                "Acceso",
+                registro.Id.ToString(),
+                $"Usuario {dto.UsuarioTransporteId} en viaje {dto.ViajeId}: {registro.ResultadoAcceso}" +
+                    (registro.MotivoRechazo is null ? "" : $" ({registro.MotivoRechazo})"));
+
             return Result<AccesoDto>.Ok(MapearAcceso(registro));
         }
 

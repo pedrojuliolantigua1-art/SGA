@@ -1,16 +1,46 @@
-﻿@inherits LayoutComponentBase
-<div class="page">
-    <div class="sidebar">
-        <NavMenu />
-    </div>
+@inherits LayoutComponentBase
+@inject SesionState Sesion
+@inject NavigationManager Nav
 
-    <main>
-        <div class="top-row px-4">
-            <a href="https://learn.microsoft.com/aspnet/core/" target="_blank">About</a>
+<div class="page">
+    <div class="sga-sidebar">
+        <div class="sga-marca">
+            SGA-ITLA
+            <small>Transporte Institucional</small>
         </div>
 
-        <article class="content px-4">
-            @Body
-        </article>
-    </main>
+        @if (Sesion.EstaAutenticado)
+        {
+            <div class="sga-usuario">
+                <div class="nombre">@Sesion.Usuario!.NombreCompleto</div>
+                <div class="rol">@Sesion.Usuario!.TipoUsuario</div>
+            </div>
+
+            <NavMenu />
+
+            <button class="sga-cerrar-sesion" @onclick="CerrarSesionAsync">Cerrar sesión</button>
+        }
+    </div>
+
+    <div class="sga-contenido">
+        <NotificacionesBell />
+        @Body
+    </div>
 </div>
+
+@code {
+    protected override async Task OnInitializedAsync()
+    {
+        Sesion.CambioSesion += StateHasChanged;
+        await Sesion.RestaurarAsync();
+
+        if (!Sesion.EstaAutenticado && !Nav.Uri.Contains("/login"))
+            Nav.NavigateTo("/login", replace: true);
+    }
+
+    private async Task CerrarSesionAsync()
+    {
+        await Sesion.CerrarSesionAsync();
+        Nav.NavigateTo("/login", replace: true);
+    }
+}

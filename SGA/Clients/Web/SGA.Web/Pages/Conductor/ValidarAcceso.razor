@@ -1,0 +1,177 @@
+@page "/conductor/validar-acceso"
+@using SGA.Web.Models.Accesos
+@using SGA.Web.Models.Viajes
+@inject SgaApiService Api
+@inject SesionState Sesion
+
+<PageTitle>Validar Abordaje</PageTitle>
+
+<div class="sga-topbar"><h1>✅ Validar Abordaje</h1></div>
+
+<div class="sga-card">
+    <h2>Verificar código de ticket</h2>
+    <p class="text-muted">Selecciona tu viaje en curso y pide al estudiante el código de su ticket
+       (el que le aparece en su Billetera, ej. <code>TCK-000123</code>).</p>
+
+    <div class="row g-3">
+        <div class="col-md-6">
+            <label class="form-label">Viaje (en curso)</label>
+            <select class="form-select" @bind="_viajeSeleccionado">
+                <option value="0">-- Selecciona un viaje --</option>
+                @foreach (var viaje in _viajesActivos)
+                {
+                    <option value="@viaje.Id">Viaje #@viaje.Id — Cupo @viaje.CupoActual/@viaje.CapacidadMaxima</option>
+                }
+            </select>
+        </div>
+        <div class="col-md-6">
+            <label class="form-label">Código del ticket</label>
+            <input class="form-control" @bind="_codigo" placeholder="TCK-000123" />
+        </div>
+    </div>
+
+    @if (!string.IsNullOrWhiteSpace(_errorBusqueda))
+    {
+        <div class="sga-mensaje-error mt-3">@_errorBusqueda</div>
+    }
+
+    <button class="btn btn-sga-primario mt-3" @onclick="ValidarAsync" disabled="@_validando">
+        @(_validando ? "Verificando..." : "Verificar código")
+    </button>
+</div>
+
+@if (_ultimoResultado is not null)
+{
+    <div class="sga-card @(_esValidoParaEsteViaje ? "" : "acento-rojo")">
+        <h2>@(_esValidoParaEsteViaje ? "✅ Ticket válido — puede abordar" : "⛔ Ticket no válido para este viaje")</h2>
+        <p><strong>Estudiante:</strong> @_ultimoNombreEstudiante</p>
+        <p><strong>Código:</strong> @_ultimoResultado.CodigoTicket</p>
+        <p><strong>Resultado del ticket:</strong> @_ultimoResultado.DescripcionResultado</p>
+        @if (!_esValidoParaEsteViaje && _ultimoResultado.FuePermitido)
+        {
+            <p><strong>Motivo:</strong> Este código pertenece al viaje #@_ultimoResultado.ViajeId, no al que seleccionaste.</p>
+        }
+        else if (!string.IsNullOrWhiteSpace(_ultimoResultado.MotivoRechazo))
+        {
+            <p><strong>Motivo:</strong> @_ultimoResultado.MotivoRechazo</p>
+        }
+        <p class="text-muted mb-0">Comprado el @_ultimoResultado.FechaHora.ToString("dd/MM/yyyy hh:mm:ss tt")</p>
+    </div>
+}
+
+<div class="sga-card">
+    <h3>Historial reciente de este viaje</h3>
+    @if (_historial.Count == 0)
+    {
+        <p class="text-muted mb-0">Selecciona un viaje para ver los tickets comprados para él.</p>
+    }
+    else
+    {
+        <table class="table table-sga">
+            <thead><tr><th>Código</th><th>Estudiante</th><th>Resultado</th><th>Hora</th></tr></thead>
+            <tbody>
+                @foreach (var acceso in _historial.OrderByDescending(a => a.FechaHora))
+                {
+                    <tr>
+                        <td>@acceso.CodigoTicket</td>
+                        <td>@_nombresPorUsuario.GetValueOrDefault(acceso.UsuarioTransporteId, $"Usuario #{acceso.UsuarioTransporteId}")</td>
+                        <td><span class="badge-estado @(acceso.FuePermitido ? "estado-completado" : "estado-cancelado")">@acceso.DescripcionResultado</span></td>
+                        <td>@acceso.FechaHora.ToString("hh:mm:ss tt")</td>
+                    </tr>
+                }
+            </tbody>
+        </table>
+    }
+</div>
+
+@code {
+    private List<ViajeModel> _viajesActivos = new();
+    private int _viajeSeleccionado;
+    private string _codigo = string.Empty;
+    private bool _validando;
+    private string? _errorBusqueda;
+    private string? _ultimoNombreEstudiante;
+    private AccesoModel? _ultimoResultado;
+    private bool _esValidoParaEsteViaje;
+    private List<AccesoModel> _historial = new();
+    private readonly Dictionary<int, string> _nombresPorUsuario = new();
+
+    protected override async Task OnInitializedAsync()
+    {
+        var conductorId = Sesion.Usuario?.Id ?? 0;
+        var resultado = await Api.GetAsync<List<ViajeModel>>($"api/viajes/por-conductor/{conductorId}");
+        if (resultado.EsExitoso)
+            _viajesActivos = (resultado.Valor ?? new()).Where(v => v.Estado == 2).ToList();
+    }
+
+    private async Task ValidarAsync()
+    {
+        _errorBusqueda = null;
+        _ultimoResultado = null;
+
+        if (_viajeSeleccionado == 0)
+        {
+            _errorBusqueda = "Selecciona el viaje en curso.";
+            return;
+        }
+
+        var accesoId = ExtraerIdDelCodigo(_codigo);
+        if (accesoId is null)
+        {
+            _errorBusqueda = "Ese código no tiene un formato válido (debe ser TCK-000123).";
+            return;
+        }
+
+        _validando = true;
+        try
+        {
+            var acceso = await Api.GetAsync<AccesoModel>($"api/accesos/{accesoId}");
+            if (!acceso.EsExitoso || acceso.Valor is null)
+            {
+                _errorBusqueda = "No se encontró ningún ticket con ese código.";
+                return;
+            }
+
+            _ultimoResultado = acceso.Valor;
+            _esValidoParaEsteViaje = acceso.Valor.FuePermitido && acceso.Valor.ViajeId == _viajeSeleccionado;
+
+            var estudiante = await Api.GetAsync<EstudianteBusquedaModel>($"api/usuarios/{acceso.Valor.UsuarioTransporteId}");
+            _ultimoNombreEstudiante = estudiante.EsExitoso && estudiante.Valor is not null
+                ? $"{estudiante.Valor.Nombre} {estudiante.Valor.Apellido}".Trim()
+                : $"Usuario #{acceso.Valor.UsuarioTransporteId}";
+
+            _nombresPorUsuario[acceso.Valor.UsuarioTransporteId] = _ultimoNombreEstudiante;
+
+            await CargarHistorialAsync();
+        }
+        finally
+        {
+            _validando = false;
+        }
+    }
+
+    /// <summary>El código tiene forma TCK-000123 — extraemos el número y lo tratamos como el Id del acceso.</summary>
+    private static int? ExtraerIdDelCodigo(string codigo)
+    {
+        if (string.IsNullOrWhiteSpace(codigo)) return null;
+
+        var soloDigitos = new string(codigo.Where(char.IsDigit).ToArray());
+        return int.TryParse(soloDigitos, out var id) && id > 0 ? id : null;
+    }
+
+    private async Task CargarHistorialAsync()
+    {
+        if (_viajeSeleccionado == 0) return;
+        var resultado = await Api.GetAsync<List<AccesoModel>>($"api/accesos/por-viaje/{_viajeSeleccionado}");
+        if (resultado.EsExitoso)
+            _historial = resultado.Valor ?? new();
+    }
+
+    /// <summary>Forma mínima para leer Nombre/Apellido desde /api/usuarios/{id}.</summary>
+    private sealed class EstudianteBusquedaModel
+    {
+        public int Id { get; set; }
+        public string? Nombre { get; set; }
+        public string? Apellido { get; set; }
+    }
+}

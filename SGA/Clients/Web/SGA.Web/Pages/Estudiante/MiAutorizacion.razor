@@ -1,0 +1,97 @@
+@page "/estudiante/mi-autorizacion"
+@using SGA.Web.Models.Autorizaciones
+@using SGA.Web.Models.Accesos
+@inject SgaApiService Api
+@inject SesionState Sesion
+
+<PageTitle>Mi Autorización</PageTitle>
+
+<div class="sga-topbar"><h1> Mi Autorización</h1></div>
+
+@if (_cargando)
+{
+    <p>Consultando tu billetera...</p>
+}
+else if (_error is not null)
+{
+    <div class="sga-card acento-rojo">
+        <p class="mb-0">No se encontró una autorización activa: @_error</p>
+        <p class="text-muted mb-0">Recuerda que la tarjeta recargable se adquiere de forma presencial
+           en el Departamento de Transporte del ITLA.</p>
+    </div>
+}
+else if (_tarjeta is not null)
+{
+    <div class="sga-card">
+        <p class="text-muted mb-1">Saldo disponible</p>
+        <h2 class="mb-2">RD$ @_tarjeta.SaldoDisponible.ToString("N2")</h2>
+        <div class="d-flex justify-content-between align-items-center border-top pt-2 mt-2">
+            <span class="text-muted">Tarjeta N° @_tarjeta.NumeroTarjeta</span>
+            <span class="badge-estado @_tarjeta.ClaseEstado">@_tarjeta.DescripcionEstado</span>
+        </div>
+    </div>
+
+    <h3 class="mt-4 mb-2">Últimos movimientos</h3>
+    @if (_movimientos.Count == 0)
+    {
+        <div class="sga-card">Aún no tienes movimientos registrados.</div>
+    }
+    else
+    {
+        @foreach (var acceso in _movimientos.OrderByDescending(a => a.FechaHora).Take(10))
+        {
+            <div class="sga-card d-flex justify-content-between align-items-center py-2">
+                <div>
+                    <p class="mb-0">@(acceso.FuePermitido ? "Ticket de transporte" : "Intento de acceso rechazado")</p>
+                    <small class="text-muted">@acceso.FechaHora.ToString("dd/MM/yyyy hh:mm tt")</small>
+                </div>
+                @if (acceso.FuePermitido)
+                {
+                    <span class="text-danger">-RD$35.00</span>
+                }
+                else
+                {
+                    <span class="badge-estado estado-cancelado">@acceso.DescripcionResultado</span>
+                }
+            </div>
+        }
+    }
+
+    <a class="btn btn-sga-primario w-100 mt-3" href="estudiante/comprar-ticket">Comprar un ticket</a>
+}
+
+@code {
+    private TarjetaRecargableModel? _tarjeta;
+    private List<AccesoModel> _movimientos = new();
+    private bool _cargando = true;
+    private string? _error;
+
+    protected override async Task OnInitializedAsync()
+    {
+        var usuarioId = Sesion.Usuario?.Id ?? 0;
+
+        var resumen = await Api.GetAsync<AutorizacionResumenModel>($"api/autorizaciones/por-usuario/{usuarioId}");
+        if (!resumen.EsExitoso || resumen.Valor is null)
+        {
+            _cargando = false;
+            _error = resumen.Error ?? "No se encontró autorización.";
+            return;
+        }
+
+        var detalle = await Api.GetAsync<TarjetaRecargableModel>($"api/autorizaciones/{resumen.Valor.Id}");
+        if (!detalle.EsExitoso || detalle.Valor is null)
+        {
+            _cargando = false;
+            _error = detalle.Error ?? "No se pudo cargar el detalle de la tarjeta.";
+            return;
+        }
+
+        _tarjeta = detalle.Valor;
+
+        var movimientos = await Api.GetAsync<List<AccesoModel>>($"api/accesos/por-usuario/{usuarioId}");
+        if (movimientos.EsExitoso)
+            _movimientos = movimientos.Valor ?? new();
+
+        _cargando = false;
+    }
+}

@@ -1,0 +1,132 @@
+@page "/estudiante/viajes/{ViajeId:int}"
+@using SGA.Web.Models.Autobuses
+@using SGA.Web.Models.Rutas
+@using SGA.Web.Models.Viajes
+@inject SgaApiService Api
+
+<PageTitle>Detalle del Viaje</PageTitle>
+
+
+
+<div class="sga-topbar">
+    <h1>Detalle del Viaje</h1>
+    <a class="btn btn-sga-secundario btn-sm" href="estudiante/billetera">Volver</a>
+</div>
+
+@if (_cargando)
+{
+    <p>Cargando detalle del viaje...</p>
+}
+else if (_error is not null)
+{
+    <div class="sga-mensaje-error">@_error</div>
+}
+else if (_viaje is not null)
+{
+    <div class="sga-card">
+        <div class="sga-viaje-detalle">
+            <div>
+                @if (!string.IsNullOrWhiteSpace(_fotoAutobusUrl))
+                {
+                    <img class="sga-foto-autobus" src="@_fotoAutobusUrl" alt="Foto del autobus" />
+                }
+                else
+                {
+                    <div class="sga-foto-placeholder">Sin foto del autobus</div>
+                }
+            </div>
+
+            <div>
+                <div class="d-flex justify-content-between align-items-start mb-3">
+                    <div>
+                        <h2 class="mb-1">Viaje #@_viaje.Id</h2>
+                        <p class="text-muted mb-0">@_nombreRuta</p>
+                    </div>
+                    <span class="badge-estado @_viaje.ClaseEstado">@_viaje.DescripcionEstado</span>
+                </div>
+
+                <table class="table table-sga">
+                    <tbody>
+                        <tr><td class="text-muted">Fecha</td><td>@_viaje.Fecha.ToString("dd/MM/yyyy")</td></tr>
+                        <tr><td class="text-muted">Salida</td><td>@_horaSalida</td></tr>
+                        <tr><td class="text-muted">Llegada estimada</td><td>@_horaLlegada</td></tr>
+                        <tr><td class="text-muted">Cupo</td><td>@_viaje.CupoActual / @_viaje.CapacidadMaxima</td></tr>
+                        <tr><td class="text-muted">Autobus</td><td>@_descripcionAutobus</td></tr>
+                        <tr><td class="text-muted">Estado del autobus</td><td>@_estadoAutobus</td></tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+}
+
+@code {
+    [Parameter] public int ViajeId { get; set; }
+
+    private ViajeModel? _viaje;
+    private string _nombreRuta = "Ruta no disponible";
+    private string _horaSalida = "No disponible";
+    private string _horaLlegada = "No disponible";
+    private string _descripcionAutobus = "No disponible";
+    private string _estadoAutobus = "No disponible";
+    private string? _fotoAutobusUrl;
+    private bool _cargando = true;
+    private string? _error;
+
+    protected override async Task OnParametersSetAsync()
+    {
+        _cargando = true;
+        _error = null;
+        _fotoAutobusUrl = null;
+        _nombreRuta = "Ruta no disponible";
+        _horaSalida = "No disponible";
+        _horaLlegada = "No disponible";
+        _descripcionAutobus = "No disponible";
+        _estadoAutobus = "No disponible";
+
+        var viaje = await Api.GetAsync<ViajeModel>($"api/viajes/{ViajeId}");
+        if (!viaje.EsExitoso || viaje.Valor is null)
+        {
+            _cargando = false;
+            _error = viaje.Error ?? "No se encontro el viaje.";
+            return;
+        }
+
+        _viaje = viaje.Valor;
+        await CargarRutaAsync(_viaje);
+        await CargarAutobusAsync(_viaje.AutobusId);
+
+        _cargando = false;
+    }
+
+    private async Task CargarRutaAsync(ViajeModel viaje)
+    {
+        var ruta = await Api.GetAsync<RutaDetalleModel>($"api/rutas/{viaje.RutaId}/detalle");
+        if (!ruta.EsExitoso || ruta.Valor is null)
+            return;
+
+        _nombreRuta = ruta.Valor.Ruta.Nombre ?? $"Ruta #{viaje.RutaId}";
+
+        var horario = ruta.Valor.Horarios.FirstOrDefault(h => h.Id == viaje.HorarioRutaId);
+        if (horario is not null)
+        {
+            _horaSalida = horario.HoraSalida.ToString(@"hh\:mm");
+            _horaLlegada = horario.HoraLlegadaEstimada.ToString(@"hh\:mm");
+        }
+    }
+
+    private async Task CargarAutobusAsync(int autobusId)
+    {
+        var autobus = await Api.GetAsync<AutobusModel>($"api/autobuses/{autobusId}");
+        if (autobus.EsExitoso && autobus.Valor is not null)
+        {
+            _descripcionAutobus = $"{autobus.Valor.Placa} - {autobus.Valor.Marca} {autobus.Valor.Modelo}";
+            _estadoAutobus = autobus.Valor.Estado;
+        }
+
+        var fotos = await Api.GetAsync<List<FotoAutobusModel>>($"api/fotosautobus/autobus/{autobusId}");
+        var primeraFoto = fotos.Valor?.FirstOrDefault();
+        if (fotos.EsExitoso && primeraFoto is not null)
+            _fotoAutobusUrl = Api.ObtenerUrlAbsoluta(primeraFoto.UrlPublica);
+    }
+}

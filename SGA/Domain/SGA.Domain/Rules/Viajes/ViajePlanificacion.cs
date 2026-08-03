@@ -56,10 +56,10 @@ namespace SGA.Domain.Rules
             }
 
             var catalogoValido = ValidationGeneral.Combinar(
-                RutaRules.Validar(ruta),
-                HorarioRules.Validar(horario, ruta),
-                AutobusRules.ValidarParaAsignacion(autobus),
-                ConductorRules.ValidarParaAsignacion(conductor));
+            RutaRules.Validar(ruta),
+            HorarioRules.Validar(horario, rutaActiva: ruta?.Activa ?? false, rutaIdEsperado: ruta?.Id),
+            AutobusRules.ValidarParaAsignacion(autobus),
+            ConductorRules.ValidarParaAsignacion(conductor));
 
             if (catalogoValido.EsFallo)
             {

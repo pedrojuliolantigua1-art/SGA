@@ -4,9 +4,11 @@ using SGA.Application.DTOs.Common;
 using SGA.Application.DTOs.Horarios;
 using SGA.Application.Interfaces.Services;
 using SGA.Application.Services;
+using Microsoft.AspNetCore.Authorization;
 
 namespace SGA.Api.Controllers
 {
+    [Authorize]
     [Route("api/[controller]")]
     [ApiController]
     public sealed class HorariosRutaController : ControllerBase

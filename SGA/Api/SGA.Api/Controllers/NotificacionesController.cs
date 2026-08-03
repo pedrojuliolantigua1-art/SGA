@@ -2,9 +2,11 @@ using Microsoft.AspNetCore.Mvc;
 using SGA.Api.Common;
 using SGA.Application.DTOs.Notificaciones;
 using SGA.Application.Interfaces.Services;
+using Microsoft.AspNetCore.Authorization;
 
 namespace SGA.Api.Controllers
 {
+    [Authorize]
     [ApiController]
     [Route("api/notificaciones")]
     public sealed class NotificacionesController : ControllerBase

@@ -1,7 +1,36 @@
-﻿@page "/"
+@page "/"
+@inject SesionState Sesion
 
-<PageTitle>Home</PageTitle>
+<PageTitle>SGA-ITLA — Inicio</PageTitle>
 
-<h1>Hello, world!</h1>
+@if (Sesion.EstaAutenticado)
+{
+    <div class="sga-topbar">
+        <h1>Hola, @Sesion.Usuario!.Nombre 👋</h1>
+    </div>
 
-Welcome to your new app.
+    @if (Sesion.Usuario!.EsConductor)
+    {
+        <div class="sga-card">
+            <h2>Panel del conductor</h2>
+            <p>Desde aquí puedes ver tus viajes asignados, confirmar el inicio y fin de cada recorrido,
+               reportar incidencias y validar el abordaje de los estudiantes.</p>
+            <a class="btn btn-sga-primario me-2" href="conductor/mis-viajes">Ver mis viajes</a>
+            <a class="btn btn-sga-secundario" href="conductor/validar-acceso">Validar abordaje</a>
+        </div>
+    }
+    else
+    {
+        <div class="sga-card">
+            <h2>Panel del estudiante</h2>
+            <p>Consulta las rutas y horarios disponibles, revisa el estado de los viajes del día,
+               compra tu ticket de transporte y revisa tus notificaciones.</p>
+            <a class="btn btn-sga-primario me-2" href="estudiante/viajes-del-dia">Viajes de hoy</a>
+            <a class="btn btn-sga-secundario" href="estudiante/comprar-ticket">Comprar ticket</a>
+        </div>
+    }
+}
+
+@code {
+    protected override async Task OnInitializedAsync() => await Sesion.RestaurarAsync();
+}

@@ -29,5 +29,11 @@ namespace SGA.Application.Interfaces.Services
         Task<Result<EmpleadoAdministrativoDto>> ActualizarEmpleadoAdministrativoAsync(int id, ActualizarEmpleadoAdministrativoDto dto);
 
         Task<Result> EliminarAsync(int id, EliminarDto dto);
+
+        // ─── Administrador de Transporte ──────────────────────────────────────
+        Task<Result<AdministradorTransporteDto>> RegistrarAdministradorTransporteAsync(CrearAdministradorTransporteDto dto);
+        Task<Result<AdministradorTransporteDto>> ActualizarAdministradorTransporteAsync(int id, ActualizarAdministradorTransporteDto dto);
+        Task<Result<AdministradorTransporteDto>> ObtenerAdministradorPorIdAsync(int id);
+        Task<Result<IReadOnlyList<AdministradorTransporteDto>>> ListarAdministradoresAsync();
     }
 }

@@ -1,0 +1,371 @@
+:root {
+    --sga-azul-900: #0b2b5c;
+    --sga-azul-800: #0d3d85;
+    --sga-azul-700: #1565c0;
+    --sga-azul-600: #1976d2;
+    --sga-azul-500: #1e88e5;
+    --sga-azul-100: #e3f2fd;
+    --sga-azul-50:  #f4f9ff;
+
+    --sga-rojo-700: #c62828;
+    --sga-rojo-600: #d32f2f;
+    --sga-rojo-500: #e53935;
+    --sga-rojo-100: #fdecea;
+
+    --sga-gris-900: #212529;
+    --sga-gris-700: #495057;
+    --sga-gris-400: #adb5bd;
+    --sga-gris-200: #e9ecef;
+    --sga-gris-100: #f5f7fa;
+
+    --sga-exito: #2e7d32;
+    --sga-advertencia: #f9a825;
+
+    --sga-radius: 10px;
+    --sga-sombra: 0 2px 10px rgba(11, 43, 92, 0.08);
+}
+
+html, body {
+    font-family: 'Segoe UI', 'Helvetica Neue', Helvetica, Arial, sans-serif;
+    background-color: var(--sga-gris-100);
+    color: var(--sga-gris-900);
+}
+
+a, .btn-link {
+    color: var(--sga-azul-700);
+}
+
+/* === Layout general === */
+.page {
+    display: flex;
+}
+
+.sga-sidebar {
+    width: 260px;
+    min-height: 100vh;
+    background: linear-gradient(180deg, var(--sga-azul-900) 0%, var(--sga-azul-800) 100%);
+    color: white;
+    flex-shrink: 0;
+}
+
+.sga-marca {
+    padding: 1.5rem 1.25rem 1rem 1.25rem;
+    font-size: 1.35rem;
+    font-weight: 700;
+    letter-spacing: .3px;
+    border-bottom: 1px solid rgba(255,255,255,.12);
+}
+
+.sga-marca small {
+    display: block;
+    font-size: .7rem;
+    font-weight: 400;
+    color: var(--sga-azul-100);
+    letter-spacing: .5px;
+}
+
+.sga-usuario {
+    padding: 1rem 1.25rem;
+    border-bottom: 1px solid rgba(255,255,255,.12);
+}
+
+.sga-usuario .nombre { font-weight: 600; }
+.sga-usuario .rol { font-size: .78rem; color: var(--sga-azul-100); }
+
+.sga-nav {
+    padding: .75rem;
+}
+
+.sga-nav .nav-link {
+    color: rgba(255,255,255,.88);
+    border-radius: 8px;
+    padding: .6rem .9rem;
+    margin-bottom: .2rem;
+    display: flex;
+    align-items: center;
+    gap: .6rem;
+    font-size: .93rem;
+}
+
+.sga-nav .nav-link:hover {
+    background: rgba(255,255,255,.10);
+    color: white;
+}
+
+.sga-nav .nav-link.active {
+    background: var(--sga-azul-600);
+    color: white;
+    font-weight: 600;
+}
+
+.sga-cerrar-sesion {
+    margin: .75rem;
+    padding: .6rem .9rem;
+    border-radius: 8px;
+    background: var(--sga-rojo-600);
+    color: white;
+    border: none;
+    width: calc(100% - 1.5rem);
+    font-weight: 600;
+    cursor: pointer;
+}
+
+.sga-cerrar-sesion:hover { background: var(--sga-rojo-700); }
+
+.sga-contenido {
+    flex: 1;
+    min-height: 100vh;
+    padding: 1.75rem 2rem;
+}
+
+.sga-topbar {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 1.25rem;
+}
+
+.sga-topbar h1 {
+    font-size: 1.4rem;
+    font-weight: 700;
+    color: var(--sga-azul-900);
+    margin: 0;
+}
+
+/* === Tarjetas === */
+.sga-card {
+    background: white;
+    border-radius: var(--sga-radius);
+    box-shadow: var(--sga-sombra);
+    padding: 1.25rem 1.4rem;
+    margin-bottom: 1.25rem;
+    border-top: 4px solid var(--sga-azul-600);
+}
+
+.sga-card.acento-rojo { border-top-color: var(--sga-rojo-600); }
+
+.sga-card h2, .sga-card h3 {
+    color: var(--sga-azul-900);
+    font-size: 1.05rem;
+    font-weight: 700;
+    margin-bottom: .9rem;
+}
+
+/* === Botones === */
+.btn-sga-primario {
+    background-color: var(--sga-azul-600);
+    border-color: var(--sga-azul-600);
+    color: white;
+    font-weight: 600;
+}
+.btn-sga-primario:hover { background-color: var(--sga-azul-700); border-color: var(--sga-azul-700); color: white; }
+
+.btn-sga-peligro {
+    background-color: var(--sga-rojo-600);
+    border-color: var(--sga-rojo-600);
+    color: white;
+    font-weight: 600;
+}
+.btn-sga-peligro:hover { background-color: var(--sga-rojo-700); border-color: var(--sga-rojo-700); color: white; }
+
+.btn-sga-secundario {
+    background-color: white;
+    border: 1.5px solid var(--sga-azul-600);
+    color: var(--sga-azul-700);
+    font-weight: 600;
+}
+.btn-sga-secundario:hover { background-color: var(--sga-azul-100); }
+
+/* === Insignias de estado === */
+.badge-estado {
+    padding: .32rem .7rem;
+    border-radius: 999px;
+    font-size: .78rem;
+    font-weight: 600;
+    display: inline-block;
+}
+
+.estado-programado  { background: var(--sga-azul-100); color: var(--sga-azul-800); }
+.estado-en-curso    { background: #fff3cd; color: #8a6100; }
+.estado-completado  { background: #e2f3e5; color: var(--sga-exito); }
+.estado-cancelado   { background: var(--sga-rojo-100); color: var(--sga-rojo-700); }
+.estado-retrasado   { background: #ffe6d5; color: #a34a00; }
+
+/* === Tablas === */
+.table-sga thead th {
+    background: var(--sga-azul-900);
+    color: white;
+    font-weight: 600;
+    border: none;
+    font-size: .85rem;
+}
+
+.table-sga td, .table-sga th {
+    vertical-align: middle;
+}
+
+.table-sga tbody tr:nth-child(even) {
+    background: var(--sga-gris-100);
+}
+
+/* === Formularios === */
+.form-label {
+    font-weight: 600;
+    color: var(--sga-gris-700);
+    font-size: .88rem;
+}
+
+.form-control:focus, .form-select:focus {
+    border-color: var(--sga-azul-600);
+    box-shadow: 0 0 0 .2rem rgba(21, 101, 192, .15);
+}
+
+/* === Login === */
+.sga-login-fondo {
+    min-height: 100vh;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: linear-gradient(135deg, var(--sga-azul-900) 0%, var(--sga-azul-700) 60%, var(--sga-rojo-600) 130%);
+}
+
+.sga-login-card {
+    background: white;
+    border-radius: 14px;
+    box-shadow: 0 12px 40px rgba(0,0,0,.25);
+    padding: 2.4rem 2.2rem;
+    width: 100%;
+    max-width: 400px;
+}
+
+.sga-ticket-codigo {
+    font-family: monospace;
+    font-size: 1.6rem;
+    font-weight: 700;
+    letter-spacing: 1px;
+    text-align: center;
+    background: var(--sga-azul-50);
+    color: var(--sga-azul-900);
+    border: 1.5px dashed var(--sga-azul-500);
+    border-radius: var(--sga-radius);
+    padding: .9rem;
+}
+
+.sga-opcion-viaje {
+    display: flex;
+    align-items: center;
+    gap: .75rem;
+    border: 1.5px solid var(--sga-gris-200);
+    border-radius: var(--sga-radius);
+    padding: .6rem .9rem;
+    cursor: pointer;
+}
+
+.sga-opcion-viaje input { width: auto; margin: 0; }
+
+.sga-opcion-viaje.seleccionada {
+    border-color: var(--sga-azul-600);
+    background: var(--sga-azul-50);
+}
+
+.sga-opcion-viaje.deshabilitada {
+    opacity: .55;
+    cursor: not-allowed;
+}
+
+.sga-foto-autobus {
+    width: 100%;
+    max-height: 260px;
+    object-fit: cover;
+    border-radius: 8px;
+    border: 1px solid var(--sga-gris-200);
+    background: var(--sga-gris-100);
+}
+
+.sga-foto-placeholder {
+    min-height: 180px;
+    border: 1.5px dashed var(--sga-gris-400);
+    border-radius: 8px;
+    color: var(--sga-gris-700);
+    background: var(--sga-gris-100);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.sga-miniaturas {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(84px, 1fr));
+    gap: .5rem;
+}
+
+.sga-miniaturas img {
+    width: 100%;
+    aspect-ratio: 4 / 3;
+    object-fit: cover;
+    border-radius: 6px;
+    border: 1px solid var(--sga-gris-200);
+}
+
+.sga-viaje-detalle {
+    display: grid;
+    grid-template-columns: minmax(180px, 280px) 1fr;
+    gap: 1rem;
+    align-items: start;
+}
+
+.sga-login-badge {
+    width: 48px;
+    height: 48px;
+    border-radius: 12px;
+    background: var(--sga-azul-600);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    margin-bottom: 1rem;
+}
+
+.sga-login-nota {
+    margin-top: 1.25rem;
+    font-size: .78rem;
+    color: var(--sga-gris-700);
+    text-align: center;
+}
+
+.sga-login-card h1 {
+    color: var(--sga-azul-900);
+    font-weight: 800;
+    font-size: 1.5rem;
+    margin-bottom: .1rem;
+}
+
+.sga-login-card .subtitulo {
+    color: var(--sga-gris-700);
+    font-size: .9rem;
+    margin-bottom: 1.5rem;
+}
+
+.sga-mensaje-error {
+    background: var(--sga-rojo-100);
+    color: var(--sga-rojo-700);
+    border-radius: 8px;
+    padding: .6rem .9rem;
+    font-size: .88rem;
+    margin-bottom: 1rem;
+}
+
+.sga-mensaje-exito {
+    background: #e2f3e5;
+    color: var(--sga-exito);
+    border-radius: 8px;
+    padding: .6rem .9rem;
+    font-size: .88rem;
+    margin-bottom: 1rem;
+}
+
+@media (max-width: 768px) {
+    .page { flex-direction: column; }
+    .sga-sidebar { width: 100%; min-height: auto; }
+    .sga-contenido { padding: 1.25rem; }
+    .sga-viaje-detalle { grid-template-columns: 1fr; }
+}

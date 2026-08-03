@@ -31,15 +31,18 @@ namespace SGA.Domain.Repository.Interfaces
         /// </summary>
         Task<TarjetaRecargableModel?> GetByNumeroTarjeta(string numeroTarjeta);
 
-        // la transaccion Registra el pago y crea la autorizacion y
-        // registra auditoria en una sola transaccion.
+        /// <summary>Crea una autorización nueva (tarjeta o permiso) y su pago en efectivo, en una sola transacción.</summary>
         Task<(int PagoId, int AutorizacionId)> EmitirAutorizacionAsync(
-            int usuarioId, decimal monto, string tipoPago,
-            string numeroComprobante, DateTime fechaHora, int registradoPorId,
+            int usuarioId, decimal monto, DateTime fechaHora, int registradoPorId,
             string tipoAutorizacion, DateTime fechaEmision,
-            DateTime? fechaInicio, DateTime? fechaFin,
-            string? numeroTarjeta, decimal? saldoInicial,
-            string? condicionInstitucional, DateTime? fechaVencimiento,
-            string creadoPor);
+            DateTime? fechaInicio, DateTime? fechaFin, string? numeroTarjeta, decimal? saldoInicial,
+            string? condicionInstitucional, DateTime? fechaVencimiento, string creadoPor);
+
+        /// <summary>Aplica una recarga en efectivo a una tarjeta ya existente y registra el pago, en una sola transacción.</summary>
+        Task<(int PagoId, decimal NuevoSaldo)> RecargarTarjetaConPagoAsync(
+            int tarjetaId, int usuarioId, decimal monto, DateTime fechaHora,
+            int registradoPorId, string creadoPor);
+
+        Task<TarjetaRecargableModel?> GetTarjetaActivaPorUsuario(int usuarioId);
     }
 }

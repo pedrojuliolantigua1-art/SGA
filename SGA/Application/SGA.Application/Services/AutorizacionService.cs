@@ -18,15 +18,18 @@ namespace SGA.Application.Services
         private readonly IAutorizacionRepository _autorizacionRepository;
         private readonly IPagoRepository _pagoRepository;
         private readonly IUsuarioRepository _usuarioRepository;
+        private readonly IAuditoriaService _auditoriaService;
 
         public AutorizacionService(
             IAutorizacionRepository autorizacionRepository,
             IPagoRepository pagoRepository,
-            IUsuarioRepository usuarioRepository)
+            IUsuarioRepository usuarioRepository,
+            IAuditoriaService auditoriaService)
         {
             _autorizacionRepository = autorizacionRepository;
             _pagoRepository = pagoRepository;
             _usuarioRepository = usuarioRepository;
+            _auditoriaService = auditoriaService;
         }
 
         public async Task<Result<AutorizacionResumenDto>> ObtenerPorUsuarioAsync(int usuarioId)
@@ -42,12 +45,23 @@ namespace SGA.Application.Services
                 : Result<AutorizacionResumenDto>.Ok(MapearResumen(autorizacion));
         }
 
-        public async Task<Result<AutorizacionResumenDto>> ObtenerPorIdAsync(int autorizacionId)
+        public async Task<Result<object>> ObtenerPorIdAsync(int autorizacionId)
         {
-            var autorizacion = await _autorizacionRepository.GetByIdAsync(autorizacionId);
-            return autorizacion is null
-                ? Result<AutorizacionResumenDto>.Fallo(ApplicationErrors.NoEncontrado("la autorizacion"))
-                : Result<AutorizacionResumenDto>.Ok(MapearResumen(autorizacion));
+            var autorizacionModel = await _autorizacionRepository.GetByIdAsync(autorizacionId);
+            if (autorizacionModel is null)
+                return Result<object>.Fallo(ApplicationErrors.NoEncontrado("la autorizacion"));
+
+            var entidad = ConvertirAutorizacion(autorizacionModel);
+
+            object dto = entidad switch
+            {
+                TicketDiario t => MapearTicketDiario(t),
+                TarjetaRecargable tar => MapearTarjeta(tar),
+                PermisoTransporte p => MapearPermiso(p),
+                _ => MapearResumen(autorizacionModel)
+            };
+
+            return Result<object>.Ok(dto);
         }
 
         public async Task<Result<IReadOnlyList<AutorizacionResumenDto>>> ListarVigentesAsync()
@@ -88,6 +102,9 @@ namespace SGA.Application.Services
             await _autorizacionRepository.AddAsync(ticket);
             await MarcarPagoComoAplicadoAsync(pago!);
 
+            await _auditoriaService.RegistrarAsync(dto.UsuarioTransporteId, "TicketDiarioEmitido", "Autorizacion", ticket.Id.ToString(),
+                $"Ticket mensual emitido para el usuario {dto.UsuarioTransporteId}, vigente {dto.FechaInicio:d} - {dto.FechaFin:d}");
+
             return Result<TicketDiarioDto>.Ok(MapearTicketDiario(ticket));
         }
 
@@ -118,6 +135,9 @@ namespace SGA.Application.Services
             await _autorizacionRepository.AddAsync(tarjeta);
             await MarcarPagoComoAplicadoAsync(pago!);
 
+            await _auditoriaService.RegistrarAsync(dto.UsuarioTransporteId, "TarjetaRecargableEmitida", "Autorizacion", tarjeta.Id.ToString(),
+                $"Tarjeta recargable {dto.NumeroTarjeta} emitida para el usuario {dto.UsuarioTransporteId} con saldo inicial {dto.SaldoInicial:C}");
+
             return Result<TarjetaRecargableDto>.Ok(MapearTarjeta(tarjeta));
         }
 
@@ -141,6 +161,10 @@ namespace SGA.Application.Services
             permiso.CreadoPor = dto.CreadoPor;
 
             await _autorizacionRepository.AddAsync(permiso);
+
+            await _auditoriaService.RegistrarAsync(dto.UsuarioTransporteId, "PermisoEmitido", "Autorizacion", permiso.Id.ToString(),
+                $"Permiso institucional emitido para el usuario {dto.UsuarioTransporteId}");
+
             return Result<PermisoTransporteDto>.Ok(MapearPermiso(permiso));
         }
 
@@ -161,6 +185,10 @@ namespace SGA.Application.Services
 
             autorizacion.EliminadoPor = dto.AnuladoPor;
             await _autorizacionRepository.UpdateAsync(autorizacion);
+
+            await _auditoriaService.RegistrarAsync(autorizacion.UsuarioTransporteId, "AutorizacionAnulada", "Autorizacion", autorizacionId.ToString(),
+                $"Autorizacion anulada por {dto.AnuladoPor}. Motivo: {dto.Motivo}");
+
             return Result.Ok();
         }
 
@@ -210,7 +238,6 @@ namespace SGA.Application.Services
                 Monto = pago.Monto,
                 TipoPago = pago.TipoPago,
                 Estado = pago.Estado,
-                NumeroComprobante = pago.NumeroComprobante,
                 FechaHora = pago.FechaHora,
                 RegistradoPorUsuarioId = pago.RegistradoPorUsuarioId
             };
@@ -233,6 +260,53 @@ namespace SGA.Application.Services
             return autorizacion;
         }
 
+        public async Task<Result<BilleteraDto>> RecargarBilleteraAsync(RecargarBilleteraDto dto)
+        {
+            var usuarioValido = await ValidarUsuarioActivoAsync(dto.UsuarioTransporteId);
+            if (usuarioValido.EsFallo)
+                return Result<BilleteraDto>.Fallo(usuarioValido.Error!);
+
+            var montoValido = ValidationGeneral.MontoPositivo(dto.Monto, "recarga");
+            if (montoValido.EsFallo)
+                return Result<BilleteraDto>.Fallo(montoValido.Error!);
+
+            var tarjetaExistente = await _autorizacionRepository.GetTarjetaActivaPorUsuario(dto.UsuarioTransporteId);
+
+            if (tarjetaExistente is not null)
+            {
+                var (_, nuevoSaldo) = await _autorizacionRepository.RecargarTarjetaConPagoAsync(
+                    tarjetaExistente.Id, dto.UsuarioTransporteId, dto.Monto,
+                    DateTime.Now, dto.RegistradoPorUsuarioId, dto.CreadoPor ?? string.Empty);
+
+                await _auditoriaService.RegistrarAsync(dto.UsuarioTransporteId, "BilleteraRecargada", "Autorizacion", tarjetaExistente.Id.ToString(),
+                    $"Recarga de {dto.Monto:C} aplicada a la tarjeta {tarjetaExistente.NumeroTarjeta}");
+
+                return Result<BilleteraDto>.Ok(new BilleteraDto(tarjetaExistente.Id, tarjetaExistente.NumeroTarjeta, nuevoSaldo, FueCreada: false));
+            }
+
+            var otraAutorizacion = await ObtenerAutorizacionActivaAsync(dto.UsuarioTransporteId);
+            if (otraAutorizacion is not null)
+                return Result<BilleteraDto>.Fallo(ApplicationErrors.OperacionInvalida(
+                    "El usuario ya tiene una autorizacion activa que no es una tarjeta recargable."));
+
+            var numeroTarjeta = GenerarNumeroTarjeta();
+
+            var (_, autorizacionId) = await _autorizacionRepository.EmitirAutorizacionAsync(
+                dto.UsuarioTransporteId, dto.Monto, DateTime.Now, dto.RegistradoPorUsuarioId,
+                tipoAutorizacion: "TarjetaRecargable", fechaEmision: DateTime.UtcNow,
+                fechaInicio: null, fechaFin: null, numeroTarjeta: numeroTarjeta, saldoInicial: dto.Monto,
+                condicionInstitucional: null, fechaVencimiento: null, creadoPor: dto.CreadoPor ?? string.Empty);
+
+            await _auditoriaService.RegistrarAsync(dto.UsuarioTransporteId, "BilleteraCreada", "Autorizacion", autorizacionId.ToString(),
+                $"Billetera creada para el usuario {dto.UsuarioTransporteId} con carga inicial de {dto.Monto:C}");
+
+            return Result<BilleteraDto>.Ok(new BilleteraDto(autorizacionId, numeroTarjeta, dto.Monto, FueCreada: true));
+        }
+
+        private static string GenerarNumeroTarjeta()
+            => $"{DateTime.UtcNow:yy}{Random.Shared.Next(100000, 999999)}";
+
+
         private static AutorizacionResumenDto MapearResumen(AutorizacionModel a) => new(
             a.Id, a.UsuarioTransporteId,
             a switch
@@ -252,5 +326,7 @@ namespace SGA.Application.Services
 
         private static PermisoTransporteDto MapearPermiso(PermisoTransporte p) =>
             new(p.Id, p.UsuarioTransporteId, p.FechaEmision, p.Estado, p.CondicionInstitucional, p.FechaVencimiento);
+
+
     }
 }

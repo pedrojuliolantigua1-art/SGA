@@ -2,9 +2,11 @@ using Microsoft.AspNetCore.Mvc;
 using SGA.Api.Common;
 using SGA.Application.DTOs.Pagos;
 using SGA.Application.Interfaces.Services;
+using Microsoft.AspNetCore.Authorization;
 
 namespace SGA.Api.Controllers
 {
+    [Authorize]
     [ApiController]
     [Route("api/pagos")]
     public sealed class PagosController : ControllerBase

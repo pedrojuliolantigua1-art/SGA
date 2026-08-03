@@ -1,0 +1,66 @@
+@page "/estudiante/notificaciones"
+@using SGA.Web.Models.Notificaciones
+@inject SgaApiService Api
+@inject SesionState Sesion
+
+<PageTitle>Notificaciones</PageTitle>
+
+<div class="sga-topbar"><h1>🔔 Mis Notificaciones</h1></div>
+
+@if (_cargando)
+{
+    <p>Cargando notificaciones...</p>
+}
+else if (_error is not null)
+{
+    <div class="sga-mensaje-error">@_error</div>
+}
+else if (_notificaciones.Count == 0)
+{
+    <div class="sga-card">No tienes notificaciones por el momento.</div>
+}
+else
+{
+    @foreach (var noti in _notificaciones.OrderByDescending(n => n.FechaHora))
+    {
+        <div class="sga-card @(noti.Leida ? "" : "acento-rojo")">
+            <div class="d-flex justify-content-between">
+                <h3 class="mb-1">@noti.Titulo</h3>
+                <small class="text-muted">@noti.FechaHora.ToString("dd/MM/yyyy hh:mm tt")</small>
+            </div>
+            <p class="mb-2">@noti.Mensaje</p>
+            @if (!noti.Leida)
+            {
+                <button class="btn btn-sga-secundario btn-sm" @onclick="() => MarcarLeidaAsync(noti)">Marcar como leída</button>
+            }
+        </div>
+    }
+}
+
+@code {
+    private List<NotificacionModel> _notificaciones = new();
+    private bool _cargando = true;
+    private string? _error;
+
+    protected override async Task OnInitializedAsync()
+    {
+        var usuarioId = Sesion.Usuario?.Id ?? 0;
+        var resultado = await Api.GetAsync<List<NotificacionModel>>($"api/notificaciones/por-usuario/{usuarioId}");
+        _cargando = false;
+
+        if (!resultado.EsExitoso)
+        {
+            _error = resultado.Error;
+            return;
+        }
+
+        _notificaciones = resultado.Valor ?? new();
+    }
+
+    private async Task MarcarLeidaAsync(NotificacionModel noti)
+    {
+        var resultado = await Api.PostAsync<object>($"api/notificaciones/{noti.Id}/marcar-leida", new { });
+        if (resultado.EsExitoso)
+            noti.Leida = true;
+    }
+}

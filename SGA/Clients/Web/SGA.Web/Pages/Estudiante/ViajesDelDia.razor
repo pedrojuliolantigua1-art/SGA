@@ -1,0 +1,89 @@
+@page "/estudiante/viajes-del-dia"
+@using SGA.Web.Models.Viajes
+@using SGA.Web.Models.Rutas
+@inject SgaApiService Api
+
+<PageTitle>Viajes del Día</PageTitle>
+
+<div class="sga-topbar">
+    <h1> Viajes del Día</h1>
+    <input type="date" class="form-control" style="width:180px" @bind="_fecha" @bind:after="CargarAsync" />
+</div>
+
+@if (_cargando)
+{
+    <p>Cargando viajes...</p>
+}
+else if (_error is not null)
+{
+    <div class="sga-mensaje-error">@_error</div>
+}
+else if (_viajes.Count == 0)
+{
+    <div class="sga-card">No hay viajes programados para esta fecha.</div>
+}
+else
+{
+    <div class="sga-card">
+        <table class="table table-sga">
+            <thead>
+                <tr>
+                    <th>Ruta</th>
+                    <th>Estado</th>
+                    <th>Cupo</th>
+                    <th></th>
+                </tr>
+            </thead>
+            <tbody>
+                @foreach (var viaje in _viajes)
+                {
+                    <tr>
+                        <td>@(_nombresRuta.GetValueOrDefault(viaje.RutaId, $"Ruta #{viaje.RutaId}"))</td>
+                        <td><span class="badge-estado @viaje.ClaseEstado">@viaje.DescripcionEstado</span></td>
+                        <td>@viaje.CupoActual / @viaje.CapacidadMaxima</td>
+                        <td class="text-end">
+                            <a class="btn btn-sga-secundario btn-sm" href="@($"estudiante/viajes/{viaje.Id}")">Detalle</a>
+                        </td>
+                    </tr>
+                }
+            </tbody>
+        </table>
+    </div>
+}
+
+@code {
+    private DateTime _fecha = DateTime.Today;
+    private List<ViajeModel> _viajes = new();
+    private Dictionary<int, string> _nombresRuta = new();
+    private bool _cargando = true;
+    private string? _error;
+
+    protected override async Task OnInitializedAsync() => await CargarAsync();
+
+    private async Task CargarAsync()
+    {
+        _cargando = true;
+        _error = null;
+
+        var fechaTexto = _fecha.ToString("yyyy-MM-dd");
+        var resultado = await Api.GetAsync<List<ViajeModel>>($"api/viajes/por-fecha?fecha={fechaTexto}");
+        _cargando = false;
+
+        if (!resultado.EsExitoso)
+        {
+            _error = resultado.Error;
+            return;
+        }
+
+        _viajes = resultado.Valor ?? new();
+
+        // Resolvemos los nombres de ruta para no mostrar solo el Id.
+        foreach (var rutaId in _viajes.Select(v => v.RutaId).Distinct())
+        {
+            if (_nombresRuta.ContainsKey(rutaId)) continue;
+            var ruta = await Api.GetAsync<RutaModel>($"api/rutas/{rutaId}");
+            if (ruta.EsExitoso && ruta.Valor is not null)
+                _nombresRuta[rutaId] = ruta.Valor.Nombre ?? $"Ruta #{rutaId}";
+        }
+    }
+}

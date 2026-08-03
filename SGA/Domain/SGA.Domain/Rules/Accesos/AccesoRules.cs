@@ -33,10 +33,6 @@ namespace SGA.Domain.Rules.Accesos
                 return Result.Fallo(DomainErrors.Accesos.ViajeRequerido);
             }
 
-            if (!ViajeEspecificaciones.EstaEnEjecucion(viaje))
-            {
-                return Result.Fallo(DomainErrors.Accesos.ViajeNoDisponible);
-            }
 
             if (autorizacion is null)
             {

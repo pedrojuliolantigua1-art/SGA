@@ -10,7 +10,6 @@ namespace SGA.Domain.Models.Pagos
         public decimal Monto { get; set; }
         public string? TipoPago { get; set; }
         public EstadoPago Estado { get; set; }
-        public string? NumeroComprobante { get; set; }
         public DateTime FechaHora { get; set; }
         public int RegistradoPorUsuarioId { get; set; }
 

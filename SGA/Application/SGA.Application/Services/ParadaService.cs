@@ -13,8 +13,20 @@ namespace SGA.Application.Services
     public sealed class ParadaService : IParadaService
     {
         private readonly IParadaRepository _paradaRepository;
+        private readonly IViajeRepository _viajeRepository;
+        private readonly IAuditoriaService _auditoriaService;
+        private readonly ICurrentUserService _currentUser;
 
-        public ParadaService(IParadaRepository paradaRepository) => _paradaRepository = paradaRepository;
+        public ParadaService(
+            IParadaRepository paradaRepository, IViajeRepository viajeRepository,
+            IAuditoriaService auditoriaService, ICurrentUserService currentUser)
+        {
+            _paradaRepository = paradaRepository;
+            _viajeRepository = viajeRepository;
+            _auditoriaService = auditoriaService;
+            _currentUser = currentUser;
+            
+        }
 
         public async Task<Result<IReadOnlyList<ParadaDto>>> ListarPorRutaAsync(int rutaId)
         {
@@ -46,7 +58,19 @@ namespace SGA.Application.Services
             if (validacion.EsFallo)
                 return Result<ParadaDto>.Fallo(validacion.Error!);
 
+            // RN: no puede haber dos paradas con el mismo orden dentro de la misma ruta.
+            var paradasDeLaRuta = await _paradaRepository.GetByRuta(dto.RutaId);
+            var candidatas = paradasDeLaRuta.Select(p => new Parada { Orden = p.Orden })
+                .Append(new Parada { Orden = parada.Orden });
+
+            var validacionOrden = ParadaRules.ValidarOrdenUnico(candidatas);
+            if (validacionOrden.EsFallo)
+                return Result<ParadaDto>.Fallo(validacionOrden.Error!);
+
             await _paradaRepository.AddAsync(parada);
+
+            await _auditoriaService.RegistrarAsync(_currentUser.UsuarioId, "ParadaCreada", "Parada", parada.Id.ToString(), $"Parada {parada.Nombre} creada en la ruta {parada.RutaId}.");
+
             return Result<ParadaDto>.Ok(MapearParada(parada));
         }
 
@@ -61,6 +85,15 @@ namespace SGA.Application.Services
             var validacion = ParadaRules.Validar(parada);
             if (validacion.EsFallo)
                 return Result<ParadaDto>.Fallo(validacion.Error!);
+
+            var paradasDeLaRuta = await _paradaRepository.GetByRuta(actual.RutaId);
+            var candidatas = paradasDeLaRuta.Where(p => p.Id != paradaId)
+                .Select(p => new Parada { Orden = p.Orden })
+                .Append(new Parada { Orden = parada.Orden });
+
+            var validacionOrden = ParadaRules.ValidarOrdenUnico(candidatas);
+            if (validacionOrden.EsFallo)
+                return Result<ParadaDto>.Fallo(validacionOrden.Error!);
 
             await _paradaRepository.UpdateAsync(parada);
             return Result<ParadaDto>.Ok(MapearParada(parada));
@@ -94,8 +127,29 @@ namespace SGA.Application.Services
             if (actual is null)
                 return Result.Fallo(ApplicationErrors.NoEncontrado("la parada"));
 
+            // RN-OPE: toda ruta debe conservar al menos dos paradas.
+            var paradasDeLaRuta = await _paradaRepository.GetByRuta(actual.RutaId);
+            if (paradasDeLaRuta.Count <= 2)
+                return Result.Fallo(ApplicationErrors.OperacionInvalida(
+                    "No se puede eliminar: la ruta debe conservar al menos dos paradas."));
+
+            // No se elimina una parada de una ruta con viajes programados o en curso —
+            // el estudiante podría haber comprado un ticket contando con esa parada.
+            var viajesDeLaRuta = await _viajeRepository.GetbyRuta(actual.RutaId);
+            var tieneViajesActivos = viajesDeLaRuta.Any(v =>
+                v.Estado == SGA.Domain.Enum.EstadoViaje.Programado ||
+                v.Estado == SGA.Domain.Enum.EstadoViaje.EnCurso ||
+                v.Estado == SGA.Domain.Enum.EstadoViaje.Retrasado);
+
+            if (tieneViajesActivos)
+                return Result.Fallo(ApplicationErrors.OperacionInvalida(
+                    "No se puede eliminar: la ruta tiene viajes programados o en curso. Cancélalos primero."));
+
             var parada = new Parada { Id = paradaId, Eliminado = true, FechaEliminacion = DateTime.UtcNow, EliminadoPor = dto.EliminadoPor };
             await _paradaRepository.DeleteAsync(parada);
+
+            await _auditoriaService.RegistrarAsync(_currentUser.UsuarioId, "ParadaEliminada", "Parada", paradaId.ToString(), $"Parada eliminada por {dto.EliminadoPor}.");
+
             return Result.Ok();
         }
 

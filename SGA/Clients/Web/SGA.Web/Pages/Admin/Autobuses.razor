@@ -1,0 +1,327 @@
+@page "/admin/autobuses"
+@using System.Net.Http.Headers
+@using SGA.Web.Models.Autobuses
+@inject SgaApiService Api
+@inject SesionState Sesion
+
+<PageTitle>Autobuses</PageTitle>
+
+<div class="sga-topbar">
+    <h1>Autobuses</h1>
+    <button class="btn btn-sga-secundario btn-sm" @onclick="CargarAsync">Refrescar</button>
+</div>
+
+@if (_mensaje is not null)
+{
+    <div class="@(_mensajeEsError ? "sga-mensaje-error" : "sga-mensaje-exito")">@_mensaje</div>
+}
+
+@if (Sesion.Usuario?.EsAdministradorTransporte != true)
+{
+    <div class="sga-card acento-rojo">No tienes permiso para administrar autobuses.</div>
+}
+else if (_cargando)
+{
+    <p>Cargando autobuses...</p>
+}
+else
+{
+    <div class="row g-3">
+        <div class="col-lg-7">
+            <div class="sga-card">
+                <div class="d-flex justify-content-between align-items-center mb-3">
+                    <h2 class="mb-0">Listado</h2>
+                    <span class="text-muted small">@_autobuses.Count registro(s)</span>
+                </div>
+
+                @if (_autobuses.Count == 0)
+                {
+                    <p class="text-muted mb-0">No hay autobuses registrados.</p>
+                }
+                else
+                {
+                    <table class="table table-sga">
+                        <thead>
+                            <tr>
+                                <th>Placa</th>
+                                <th>Marca</th>
+                                <th>Modelo</th>
+                                <th>Cupo</th>
+                                <th></th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            @foreach (var autobus in _autobuses.OrderBy(a => a.Placa))
+                            {
+                                <tr>
+                                    <td>@autobus.Placa</td>
+                                    <td>@autobus.Marca</td>
+                                    <td>@autobus.Modelo</td>
+                                    <td>@autobus.Capacidad</td>
+                                    <td class="text-end">
+                                        <button class="btn btn-sga-secundario btn-sm" @onclick="() => SeleccionarAsync(autobus)">Ver fotos</button>
+                                    </td>
+                                </tr>
+                            }
+                        </tbody>
+                    </table>
+                }
+            </div>
+
+            <div class="sga-card">
+                <h2>Registrar autobus</h2>
+                <EditForm Model="_nuevo" OnValidSubmit="CrearAsync">
+                    <div class="row g-3">
+                        <div class="col-md-6">
+                            <label class="form-label">Placa</label>
+                            <InputText class="form-control" @bind-Value="_nuevo.Placa" />
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label">Capacidad</label>
+                            <InputNumber class="form-control" @bind-Value="_nuevo.Capacidad" min="1" />
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label">Marca</label>
+                            <InputText class="form-control" @bind-Value="_nuevo.Marca" />
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label">Modelo</label>
+                            <InputText class="form-control" @bind-Value="_nuevo.Modelo" />
+                        </div>
+                        <div class="col-12">
+                            <label class="form-label">Foto inicial (opcional)</label>
+                            <InputFile class="form-control" OnChange="SeleccionarFotoNueva" accept="image/*" />
+                            @if (_fotoNueva is not null)
+                            {
+                                <small class="text-muted">@_fotoNueva.Name</small>
+                            }
+                        </div>
+                    </div>
+
+                    <button class="btn btn-sga-primario mt-3" type="submit" disabled="@_guardando">
+                        @(_guardando ? "Guardando..." : "Guardar autobus")
+                    </button>
+                </EditForm>
+            </div>
+        </div>
+
+        <div class="col-lg-5">
+            <div class="sga-card">
+                @if (_seleccionado is null)
+                {
+                    <h2>Fotos del autobus</h2>
+                    <p class="text-muted mb-0">Selecciona un autobus del listado para agregar o ver su foto.</p>
+                }
+                else
+                {
+                    <h2>@_seleccionado.Placa</h2>
+                    <p class="text-muted">@_seleccionado.Marca @_seleccionado.Modelo - @_seleccionado.Capacidad pasajeros</p>
+
+                    @if (_cargandoFotos)
+                    {
+                        <p>Cargando fotos...</p>
+                    }
+                    else if (_fotos.Count == 0)
+                    {
+                        <div class="sga-foto-placeholder mb-3">Sin foto guardada</div>
+                    }
+                    else
+                    {
+                        <img class="sga-foto-autobus mb-3" src="@Api.ObtenerUrlAbsoluta(_fotos.First().UrlPublica)" alt="Foto del autobus @_seleccionado.Placa" />
+                    }
+
+                    <label class="form-label">Agregar foto</label>
+                    <InputFile class="form-control" OnChange="SeleccionarFotoExistente" accept="image/*" />
+                    @if (_fotoExistente is not null)
+                    {
+                        <small class="text-muted d-block mt-1">@_fotoExistente.Name</small>
+                    }
+
+                    <button class="btn btn-sga-primario w-100 mt-3" @onclick="SubirFotoSeleccionadaAsync" disabled="@(_subiendoFoto || _fotoExistente is null)">
+                        @(_subiendoFoto ? "Subiendo..." : "Subir foto")
+                    </button>
+
+                    @if (_fotos.Count > 1)
+                    {
+                        <div class="sga-miniaturas mt-3">
+                            @foreach (var foto in _fotos.Skip(1))
+                            {
+                                <img src="@Api.ObtenerUrlAbsoluta(foto.UrlPublica)" alt="@foto.NombreArchivo" />
+                            }
+                        </div>
+                    }
+                }
+            </div>
+        </div>
+    </div>
+}
+
+@code {
+    private const long MaxFotoBytes = 5 * 1024 * 1024;
+
+    private List<AutobusModel> _autobuses = new();
+    private List<FotoAutobusModel> _fotos = new();
+    private AutobusModel? _seleccionado;
+    private CrearAutobusModel _nuevo = new();
+    private IBrowserFile? _fotoNueva;
+    private IBrowserFile? _fotoExistente;
+    private bool _cargando = true;
+    private bool _cargandoFotos;
+    private bool _guardando;
+    private bool _subiendoFoto;
+    private string? _mensaje;
+    private bool _mensajeEsError;
+
+    protected override async Task OnInitializedAsync()
+    {
+        if (Sesion.Usuario?.EsAdministradorTransporte == true)
+            await CargarAsync();
+        else
+            _cargando = false;
+    }
+
+    private async Task CargarAsync()
+    {
+        _cargando = true;
+        _mensaje = null;
+
+        var resultado = await Api.GetAsync<List<AutobusModel>>("api/autobuses");
+        _cargando = false;
+
+        if (!resultado.EsExitoso)
+        {
+            MostrarMensaje(false, resultado.Error ?? "No se pudieron cargar los autobuses.");
+            return;
+        }
+
+        _autobuses = resultado.Valor ?? new();
+    }
+
+    private async Task SeleccionarAsync(AutobusModel autobus)
+    {
+        _seleccionado = autobus;
+        _fotoExistente = null;
+        await CargarFotosAsync(autobus.Id);
+    }
+
+    private async Task CargarFotosAsync(int autobusId)
+    {
+        _cargandoFotos = true;
+        _fotos.Clear();
+
+        var resultado = await Api.GetAsync<List<FotoAutobusModel>>($"api/fotosautobus/autobus/{autobusId}");
+        _cargandoFotos = false;
+
+        if (!resultado.EsExitoso)
+        {
+            MostrarMensaje(false, resultado.Error ?? "No se pudieron cargar las fotos.");
+            return;
+        }
+
+        _fotos = resultado.Valor ?? new();
+    }
+
+    private void SeleccionarFotoNueva(InputFileChangeEventArgs e)
+        => _fotoNueva = e.File;
+
+    private void SeleccionarFotoExistente(InputFileChangeEventArgs e)
+        => _fotoExistente = e.File;
+
+    private async Task CrearAsync()
+    {
+        _mensaje = null;
+
+        if (string.IsNullOrWhiteSpace(_nuevo.Placa) ||
+            string.IsNullOrWhiteSpace(_nuevo.Marca) ||
+            string.IsNullOrWhiteSpace(_nuevo.Modelo) ||
+            _nuevo.Capacidad <= 0)
+        {
+            MostrarMensaje(false, "Placa, marca, modelo y capacidad son obligatorios.");
+            return;
+        }
+
+        _guardando = true;
+        try
+        {
+            _nuevo.CreadoPor = Sesion.Usuario?.Correo;
+            var resultado = await Api.PostAsync<AutobusModel>("api/autobuses", _nuevo);
+
+            if (!resultado.EsExitoso || resultado.Valor is null)
+            {
+                MostrarMensaje(false, resultado.Error ?? "No se pudo registrar el autobus.");
+                return;
+            }
+
+            if (_fotoNueva is not null)
+            {
+                var foto = await SubirFotoAsync(resultado.Valor.Id, _fotoNueva);
+                if (!foto.EsExitoso)
+                {
+                    MostrarMensaje(false, $"El autobus se guardo, pero la foto no: {foto.Error}");
+                    await CargarAsync();
+                    return;
+                }
+            }
+
+            MostrarMensaje(true, "Autobus guardado correctamente.");
+            _nuevo = new CrearAutobusModel();
+            _fotoNueva = null;
+            await CargarAsync();
+
+            var creado = _autobuses.FirstOrDefault(a => a.Id == resultado.Valor.Id);
+            if (creado is not null)
+                await SeleccionarAsync(creado);
+        }
+        finally
+        {
+            _guardando = false;
+        }
+    }
+
+    private async Task SubirFotoSeleccionadaAsync()
+    {
+        if (_seleccionado is null || _fotoExistente is null)
+            return;
+
+        _subiendoFoto = true;
+        try
+        {
+            var resultado = await SubirFotoAsync(_seleccionado.Id, _fotoExistente);
+            MostrarMensaje(resultado.EsExitoso, resultado.EsExitoso ? "Foto subida correctamente." : resultado.Error ?? "No se pudo subir la foto.");
+
+            if (resultado.EsExitoso)
+            {
+                _fotoExistente = null;
+                await CargarFotosAsync(_seleccionado.Id);
+            }
+        }
+        finally
+        {
+            _subiendoFoto = false;
+        }
+    }
+
+    private async Task<ApiResult<FotoAutobusModel>> SubirFotoAsync(int autobusId, IBrowserFile archivo)
+    {
+        if (archivo.Size > MaxFotoBytes)
+            return ApiResult<FotoAutobusModel>.Fallo("La foto no puede superar los 5 MB.");
+
+        using var contenido = new MultipartFormDataContent();
+        contenido.Add(new StringContent(autobusId.ToString()), "autobusId");
+
+        await using var stream = archivo.OpenReadStream(MaxFotoBytes);
+        using var archivoContenido = new StreamContent(stream);
+        archivoContenido.Headers.ContentType = new MediaTypeHeaderValue(
+            string.IsNullOrWhiteSpace(archivo.ContentType) ? "application/octet-stream" : archivo.ContentType);
+
+        contenido.Add(archivoContenido, "archivo", archivo.Name);
+
+        return await Api.PostContentAsync<FotoAutobusModel>("api/fotosautobus", contenido);
+    }
+
+    private void MostrarMensaje(bool exito, string mensaje)
+    {
+        _mensaje = mensaje;
+        _mensajeEsError = !exito;
+    }
+}

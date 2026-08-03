@@ -138,7 +138,9 @@ namespace SGA.Infrastructure.Persistence.Repositories
                        UsuarioNombre = u != null ? u.Nombre + " " + u.Apellido : null
                    }).FirstOrDefaultAsync();
 
-        public async Task AddAsync(AutorizacionTransporte entity) { await _context.AddAsync(entity); await _context.SaveChangesAsync(); }
+        public async Task AddAsync(AutorizacionTransporte entity) {
+            await _context.AddAsync(entity); await _context.SaveChangesAsync(); 
+        }
         public async Task UpdateAsync(AutorizacionTransporte entity) { _context.Update(entity); await _context.SaveChangesAsync(); }
         public async Task DeleteAsync(AutorizacionTransporte entity)
         {
@@ -149,29 +151,38 @@ namespace SGA.Infrastructure.Persistence.Repositories
         }
 
         public async Task<(int PagoId, int AutorizacionId)> EmitirAutorizacionAsync(
-            int usuarioId, decimal monto, string tipoPago, string numeroComprobante,
-            DateTime fechaHora, int registradoPorId, string tipoAutorizacion, DateTime fechaEmision,
-            DateTime? fechaInicio, DateTime? fechaFin, string? numeroTarjeta, decimal? saldoInicial,
-            string? condicionInstitucional, DateTime? fechaVencimiento, string creadoPor)
-        {
+        int usuarioId, decimal monto, DateTime fechaHora, int registradoPorId,
+        string tipoAutorizacion, DateTime fechaEmision,
+        DateTime? fechaInicio, DateTime? fechaFin, string? numeroTarjeta, decimal? saldoInicial,
+        string? condicionInstitucional, DateTime? fechaVencimiento, string creadoPor)
+            {
             await using var transaccion = await _context.Database.BeginTransactionAsync();
 
             AutorizacionTransporte autorizacion = tipoAutorizacion switch
             {
                 "TicketDiario" => new TicketDiario
                 {
-                    UsuarioTransporteId = usuarioId, FechaEmision = fechaEmision,
-                    FechaInicio = fechaInicio!.Value, FechaFin = fechaFin!.Value, CreadoPor = creadoPor
+                    UsuarioTransporteId = usuarioId,
+                    FechaEmision = fechaEmision,
+                    FechaInicio = fechaInicio!.Value,
+                    FechaFin = fechaFin!.Value,
+                    CreadoPor = creadoPor
                 },
                 "TarjetaRecargable" => new TarjetaRecargable
                 {
-                    UsuarioTransporteId = usuarioId, FechaEmision = fechaEmision,
-                    NumeroTarjeta = numeroTarjeta, SaldoDisponible = saldoInicial ?? 0, CreadoPor = creadoPor
+                    UsuarioTransporteId = usuarioId,
+                    FechaEmision = fechaEmision,
+                    NumeroTarjeta = numeroTarjeta,
+                    SaldoDisponible = saldoInicial ?? 0,
+                    CreadoPor = creadoPor
                 },
                 "PermisoTransporte" => new PermisoTransporte
                 {
-                    UsuarioTransporteId = usuarioId, FechaEmision = fechaEmision,
-                    CondicionInstitucional = condicionInstitucional, FechaVencimiento = fechaVencimiento, CreadoPor = creadoPor
+                    UsuarioTransporteId = usuarioId,
+                    FechaEmision = fechaEmision,
+                    CondicionInstitucional = condicionInstitucional,
+                    FechaVencimiento = fechaVencimiento,
+                    CreadoPor = creadoPor
                 },
                 _ => throw new InvalidOperationException($"Tipo de autorizacion no reconocido: {tipoAutorizacion}")
             };
@@ -181,10 +192,14 @@ namespace SGA.Infrastructure.Persistence.Repositories
 
             var pago = new PagoTransporte
             {
-                UsuarioTransporteId = usuarioId, AutorizacionTransporteId = autorizacion.Id,
-                Monto = monto, TipoPago = tipoPago, Estado = EstadoPago.Aplicado,
-                NumeroComprobante = numeroComprobante, FechaHora = fechaHora,
-                RegistradoPorUsuarioId = registradoPorId, CreadoPor = creadoPor
+                UsuarioTransporteId = usuarioId,
+                AutorizacionTransporteId = autorizacion.Id,
+                Monto = monto,
+                TipoPago = "Efectivo",
+                Estado = EstadoPago.Aplicado,
+                FechaHora = fechaHora,
+                RegistradoPorUsuarioId = registradoPorId,
+                CreadoPor = creadoPor
             };
             await _context.PagosTransporte.AddAsync(pago);
             await _context.SaveChangesAsync();
@@ -192,5 +207,61 @@ namespace SGA.Infrastructure.Persistence.Repositories
             await transaccion.CommitAsync();
             return (pago.Id, autorizacion.Id);
         }
+
+        public async Task<(int PagoId, decimal NuevoSaldo)> RecargarTarjetaConPagoAsync(
+            int tarjetaId, int usuarioId, decimal monto, DateTime fechaHora,
+            int registradoPorId, string creadoPor)
+        {
+            await using var transaccion = await _context.Database.BeginTransactionAsync();
+
+            var tarjeta = await _context.TarjetasRecargables.FirstOrDefaultAsync(t => t.Id == tarjetaId)
+                ?? throw new InvalidOperationException("Tarjeta recargable no encontrada.");
+
+            tarjeta.SaldoDisponible += monto;
+            await _context.SaveChangesAsync();
+
+            var pago = new PagoTransporte
+            {
+                UsuarioTransporteId = usuarioId,
+                AutorizacionTransporteId = tarjetaId,
+                Monto = monto,
+                TipoPago = "Efectivo",
+                Estado = EstadoPago.Aplicado,
+                FechaHora = fechaHora,
+                RegistradoPorUsuarioId = registradoPorId,
+                CreadoPor = creadoPor
+            };
+            await _context.PagosTransporte.AddAsync(pago);
+            await _context.SaveChangesAsync();
+
+            await _context.RecargasTarjeta.AddAsync(new RecargaTarjeta
+            {
+                TarjetaRecargableId = tarjetaId,
+                PagoTransporteId = pago.Id,
+                Monto = monto,
+                FechaHora = fechaHora,
+                CreadoPor = creadoPor
+            });
+            await _context.SaveChangesAsync();
+
+            await transaccion.CommitAsync();
+            return (pago.Id, tarjeta.SaldoDisponible);
+        }
+
+        public async Task<TarjetaRecargableModel?> GetTarjetaActivaPorUsuario(int usuarioId) =>
+            await (from t in _context.TarjetasRecargables.AsNoTracking()
+           join u in _context.Set<UsuarioTransporte>() on t.UsuarioTransporteId equals u.Id into uj
+           from u in uj.DefaultIfEmpty()
+           where t.UsuarioTransporteId == usuarioId && t.Estado == EstadoAutorizacion.Activa
+           select new TarjetaRecargableModel
+           {
+               Id = t.Id,
+               UsuarioTransporteId = t.UsuarioTransporteId,
+               FechaEmision = t.FechaEmision,
+               Estado = t.Estado,
+               NumeroTarjeta = t.NumeroTarjeta,
+               SaldoDisponible = t.SaldoDisponible,
+               UsuarioNombre = u != null ? u.Nombre + " " + u.Apellido : null
+           }).FirstOrDefaultAsync();
     }
 }

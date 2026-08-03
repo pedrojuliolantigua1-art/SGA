@@ -66,15 +66,14 @@ namespace SGA.Infrastructure
             return services;
         }
 
-        // para las imagenes con cludinary
+        // para las imagenes guardadas localmente en el disco del servidor
         private static IServiceCollection AddAlmacenamiento(
             this IServiceCollection services,
             IConfiguration configuration)
         {
-            services.Configure<CloudinaryOptions>(
-                configuration.GetSection("Cloudinary"));
+            var ruta = configuration["Almacenamiento:RutaFisica"] ?? "wwwroot/fotos-autobus";
 
-            services.AddSingleton<IAlmacenamientoArchivos, CloudinaryService>();
+            services.AddSingleton<IAlmacenamientoArchivos>(new LocalFileStorageService(ruta));
 
             return services;
         }

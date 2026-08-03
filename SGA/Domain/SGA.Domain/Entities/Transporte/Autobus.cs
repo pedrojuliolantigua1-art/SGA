@@ -9,7 +9,7 @@ namespace SGA.Domain.Entities.Transporte
         public string? Marca { get; set; }
         public string? Modelo { get; set; }
         public int Capacidad { get; set; }
-        public string Estado { get; set; } = "Disponible";
+        public string Estado { get; set; } = "Activo";
 
         public virtual ICollection<FotoAutobus> Fotos { get; set; } = new List<FotoAutobus>();
     }

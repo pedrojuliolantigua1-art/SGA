@@ -1,0 +1,115 @@
+@page "/estudiante/rutas"
+@using SGA.Web.Models.Rutas
+@inject SgaApiService Api
+
+<PageTitle>Rutas y Horarios</PageTitle>
+
+<div class="sga-topbar"><h1> Rutas y Horarios</h1></div>
+
+@if (_cargando)
+{
+    <p>Cargando rutas...</p>
+}
+else if (_error is not null)
+{
+    <div class="sga-mensaje-error">@_error</div>
+}
+else if (_rutas.Count == 0)
+{
+    <div class="sga-card">No hay rutas activas disponibles en este momento.</div>
+}
+else
+{
+    @foreach (var ruta in _rutas)
+    {
+        <div class="sga-card">
+            <div class="d-flex justify-content-between align-items-start">
+                <div>
+                    <h2 class="mb-1">@ruta.Nombre</h2>
+                    <p class="text-muted mb-0">@ruta.Descripcion</p>
+                </div>
+                <button class="btn btn-sga-secundario btn-sm" @onclick="() => AlternarDetalleAsync(ruta.Id)">
+                    @(_detalleAbierto == ruta.Id ? "Ocultar detalle" : "Ver paradas y horarios")
+                </button>
+            </div>
+
+            @if (_detalleAbierto == ruta.Id && _detalle is not null)
+            {
+                <hr />
+                <div class="row">
+                    <div class="col-md-6">
+                        <h3>Paradas</h3>
+                        @if (_detalle.Paradas.Count == 0)
+                        {
+                            <p class="text-muted">Sin paradas registradas.</p>
+                        }
+                        else
+                        {
+                            <ol>
+                                @foreach (var parada in _detalle.Paradas.OrderBy(p => p.Orden))
+                                {
+                                    <li>@parada.Nombre @(!string.IsNullOrWhiteSpace(parada.Referencia) ? $"— {parada.Referencia}" : "")</li>
+                                }
+                            </ol>
+                        }
+                    </div>
+                    <div class="col-md-6">
+                        <h3>Horarios</h3>
+                        @if (_detalle.Horarios.Count(h => h.Activo) == 0)
+                        {
+                            <p class="text-muted">Sin horarios activos registrados.</p>
+                        }
+                        else
+                        {
+                            <ul class="list-unstyled">
+                                @foreach (var horario in _detalle.Horarios.Where(h => h.Activo))
+                                {
+                                    <li>🕐 Salida @horario.HoraSalida.ToString(@"hh\:mm") — Llegada estimada @horario.HoraLlegadaEstimada.ToString(@"hh\:mm")</li>
+                                }
+                            </ul>
+                        }
+                    </div>
+                </div>
+            }
+        </div>
+    }
+}
+
+@code {
+    private List<RutaModel> _rutas = new();
+    private RutaDetalleModel? _detalle;
+    private int? _detalleAbierto;
+    private bool _cargando = true;
+    private string? _error;
+
+    protected override async Task OnInitializedAsync()
+    {
+        var resultado = await Api.GetAsync<List<RutaModel>>("api/rutas/activas");
+        _cargando = false;
+
+        if (!resultado.EsExitoso)
+        {
+            _error = resultado.Error;
+            return;
+        }
+
+        _rutas = resultado.Valor ?? new();
+    }
+
+    private async Task AlternarDetalleAsync(int rutaId)
+    {
+        if (_detalleAbierto == rutaId)
+        {
+            _detalleAbierto = null;
+            _detalle = null;
+            return;
+        }
+
+        var resultado = await Api.GetAsync<RutaDetalleModel>($"api/rutas/{rutaId}/detalle");
+        if (resultado.EsExitoso)
+        {
+            _detalle = resultado.Valor;
+            _detalleAbierto = rutaId;
+        }
+    }
+}

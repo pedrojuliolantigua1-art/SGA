@@ -1,0 +1,370 @@
+@page "/estudiante/comprar-ticket"
+@using SGA.Web.Models.Rutas
+@using SGA.Web.Models.Viajes
+@using SGA.Web.Models.Autorizaciones
+@using SGA.Web.Models.Accesos
+@inject SgaApiService Api
+@inject SesionState Sesion
+
+<PageTitle>Comprar Ticket</PageTitle>
+
+<div class="sga-topbar"><h1>🎫 Comprar Ticket</h1></div>
+
+@if (_ticketComprado is not null)
+{
+    <div class="sga-card">
+        <h2 class="mb-1">✅ Ticket comprado</h2>
+        <p class="text-muted mb-3">Muéstrale este código al conductor al momento de abordar.</p>
+
+        <div class="sga-ticket-codigo">@_ticketComprado.CodigoTicket</div>
+
+        <table class="table table-sga mt-3">
+            <tbody>
+                <tr><td class="text-muted">Ruta</td><td>@_nombreRutaSeleccionada</td></tr>
+                <tr><td class="text-muted">Parada</td><td>@_nombreParadaSeleccionada</td></tr>
+                <tr><td class="text-muted">Fecha</td><td>@_fecha.ToShortDateString()</td></tr>
+                <tr><td class="text-muted">Hora de salida</td><td>@_horaViajeSeleccionado</td></tr>
+                <tr><td class="text-muted">Costo</td><td>RD$35.00</td></tr>
+            </tbody>
+        </table>
+
+        <div class="d-flex gap-2 mt-3">
+            <a class="btn btn-sga-primario" href="estudiante/billetera">Ver en mi billetera</a>
+            <button class="btn btn-sga-secundario" @onclick="ReiniciarFormulario">Comprar otro ticket</button>
+        </div>
+    </div>
+}
+else
+{
+    @if (_tarjeta is not null)
+    {
+        <div class="sga-card d-flex justify-content-between align-items-center py-2 mb-3">
+            <span class="text-muted">Saldo disponible</span>
+            <span class="fw-bold">RD$ @_tarjeta.SaldoDisponible.ToString("N2")</span>
+        </div>
+    }
+
+    @if (!string.IsNullOrWhiteSpace(_error))
+    {
+        <div class="sga-mensaje-error">@_error</div>
+    }
+
+    <div class="sga-card">
+        <div class="row g-3">
+            <div class="col-md-6">
+                <label class="form-label">1. Ruta</label>
+                <select class="form-select" @bind="_rutaSeleccionada" @bind:after="CargarRutaAsync">
+                    <option value="0">-- Selecciona una ruta --</option>
+                    @foreach (var ruta in _rutas)
+                    {
+                        <option value="@ruta.Id">@ruta.Nombre</option>
+                    }
+                </select>
+            </div>
+
+            <div class="col-md-6">
+                <label class="form-label">2. Parada de abordaje</label>
+                <select class="form-select" @bind="_paradaSeleccionada" disabled="@(_detalleRuta is null)">
+                    <option value="0">-- Selecciona tu parada --</option>
+                    @if (_detalleRuta is not null)
+                    {
+                        @foreach (var parada in _detalleRuta.Paradas.OrderBy(p => p.Orden))
+                        {
+                            <option value="@parada.Id">@parada.Nombre</option>
+                        }
+                    }
+                </select>
+            </div>
+
+            <div class="col-md-6">
+                <label class="form-label">3. Fecha</label>
+                <input type="date" class="form-control" @bind="_fecha" @bind:after="FiltrarViajesDelDia"
+                       min="@DateTime.Today.ToString("yyyy-MM-dd")" disabled="@(_detalleRuta is null)" />
+            </div>
+        </div>
+
+        @if (_rutaSeleccionada > 0)
+        {
+            <hr />
+            <label class="form-label">4. Horario</label>
+
+            @if (_cargandoViajes)
+            {
+                <p class="text-muted">Buscando viajes programados...</p>
+            }
+            else if (_horariosDisponibles.Count == 0)
+            {
+                <p class="text-muted mb-0">No hay horarios disponibles para esta ruta en la fecha seleccionada.</p>
+            }
+            else
+            {
+                <select class="form-select" @bind="_horarioSeleccionado" @bind:after="AplicarHorario">
+                    <option value="0">-- Elige el horario --</option>
+                    @foreach (var horario in _horariosDisponibles)
+                    {
+                        <option value="@horario.Id">Salida @horario.HoraSalida.ToString(@"hh\:mm") — Llegada est. @horario.HoraLlegadaEstimada.ToString(@"hh\:mm")</option>
+                    }
+                </select>
+
+                @if (_horarioSeleccionado > 0)
+                {
+                    <div class="mt-3">
+                        <label class="form-label">Viaje del horario elegido</label>
+
+                        @if (_viajesDelHorario.Count == 0)
+                        {
+                            <p class="text-muted mb-0">Este horario no tiene viajes disponibles para la fecha.</p>
+                        }
+                        else
+                        {
+                            <div class="d-flex flex-column gap-2">
+                                @foreach (var viaje in _viajesDelHorario)
+                                {
+                                    var lleno = viaje.CupoActual >= viaje.CapacidadMaxima;
+                                    <label class="sga-opcion-viaje @(_viajeSeleccionado == viaje.Id ? "seleccionada" : "") @(lleno ? "deshabilitada" : "")">
+                                        <input type="radio" name="viaje" value="@viaje.Id" checked="@(_viajeSeleccionado == viaje.Id)"
+                                               disabled="@lleno" @onchange="() => SeleccionarViaje(viaje)" />
+                                        <div>
+                                            <strong>@ObtenerHoraSalida(viaje)</strong>
+                                            <div class="text-muted small">
+                                                Cupo: @viaje.CupoActual / @viaje.CapacidadMaxima
+                                                @(lleno ? " — Autobús lleno" : "")
+                                            </div>
+                                        </div>
+                                    </label>
+                                }
+                            </div>
+                        }
+                    </div>
+                }
+            }
+        }
+
+        @if (_viajeSeleccionado > 0)
+        {
+            <hr />
+            <div class="d-flex justify-content-between align-items-center">
+                <span>Costo del ticket</span>
+                <strong>RD$35.00</strong>
+            </div>
+            <button class="btn btn-sga-primario w-100 mt-3" @onclick="ComprarAsync" disabled="@(_comprando || _paradaSeleccionada == 0)">
+                @(_comprando ? "Procesando..." : "Comprar ticket")
+            </button>
+            @if (_paradaSeleccionada == 0)
+            {
+                <p class="text-muted small mt-1 mb-0">Selecciona tu parada de abordaje para continuar.</p>
+            }
+        }
+    </div>
+}
+
+@code {
+    private List<RutaModel> _rutas = new();
+    private int _rutaSeleccionada;
+    private RutaDetalleModel? _detalleRuta;
+    private int _paradaSeleccionada;
+
+    private DateTime _fecha = DateTime.Today;
+    private List<ViajeModel> _viajesRuta = new();
+    private List<ViajeModel> _viajesDelDia = new();
+    private List<HorarioRutaModel> _horariosDisponibles = new();
+    private int _horarioSeleccionado;
+    private List<ViajeModel> _viajesDelHorario = new();
+    private int _viajeSeleccionado;
+    private bool _cargandoViajes;
+
+    private TarjetaRecargableModel? _tarjeta;
+    private string? _error;
+    private bool _comprando;
+
+    private AccesoModel? _ticketComprado;
+    private string _nombreRutaSeleccionada = string.Empty;
+    private string _nombreParadaSeleccionada = string.Empty;
+    private string _horaViajeSeleccionado = string.Empty;
+
+    protected override async Task OnInitializedAsync()
+    {
+        var rutas = await Api.GetAsync<List<RutaModel>>("api/rutas/activas");
+        if (rutas.EsExitoso)
+            _rutas = rutas.Valor ?? new();
+
+        await CargarSaldoAsync();
+    }
+
+    private async Task CargarSaldoAsync()
+    {
+        var usuarioId = Sesion.Usuario?.Id ?? 0;
+        var resumen = await Api.GetAsync<AutorizacionResumenModel>($"api/autorizaciones/por-usuario/{usuarioId}");
+        if (!resumen.EsExitoso || resumen.Valor is null) return;
+
+        var detalle = await Api.GetAsync<TarjetaRecargableModel>($"api/autorizaciones/{resumen.Valor.Id}");
+        if (detalle.EsExitoso)
+            _tarjeta = detalle.Valor;
+    }
+
+    private async Task CargarRutaAsync()
+    {
+        _paradaSeleccionada = 0;
+        _horarioSeleccionado = 0;
+        _viajeSeleccionado = 0;
+        _detalleRuta = null;
+        _viajesRuta.Clear();
+        _viajesDelDia.Clear();
+        _horariosDisponibles.Clear();
+        _viajesDelHorario.Clear();
+        _error = null;
+
+        if (_rutaSeleccionada == 0) return;
+
+        var detalle = await Api.GetAsync<RutaDetalleModel>($"api/rutas/{_rutaSeleccionada}/detalle");
+        if (detalle.EsExitoso)
+            _detalleRuta = detalle.Valor;
+
+        await CargarViajesRutaAsync();
+    }
+
+    private async Task CargarViajesRutaAsync()
+    {
+        _cargandoViajes = true;
+        var resultado = await Api.GetAsync<List<ViajeModel>>($"api/viajes/por-ruta/{_rutaSeleccionada}");
+        _cargandoViajes = false;
+
+        if (!resultado.EsExitoso)
+        {
+            _error = resultado.Error;
+            return;
+        }
+
+        _viajesRuta = resultado.Valor ?? new();
+        FiltrarViajesDelDia();
+    }
+
+    private void FiltrarViajesDelDia()
+    {
+        _horarioSeleccionado = 0;
+        _viajeSeleccionado = 0;
+        _viajesDelHorario.Clear();
+
+        // Solo se puede comprar ticket para viajes programados (aún no iniciados) de la fecha elegida.
+        _viajesDelDia = _viajesRuta
+            .Where(v => v.Fecha.Date == _fecha.Date && v.Estado == 1)
+            .OrderBy(v => v.HorarioRutaId)
+            .ToList();
+
+        RecalcularHorarios();
+    }
+
+    private void RecalcularHorarios()
+    {
+        _horariosDisponibles = _detalleRuta?.Horarios
+            .Where(h => h.Activo && _viajesDelDia.Any(v => v.HorarioRutaId == h.Id))
+            .OrderBy(h => h.HoraSalida)
+            .ToList() ?? new();
+
+        if (_horarioSeleccionado != 0 && !_horariosDisponibles.Any(h => h.Id == _horarioSeleccionado))
+            _horarioSeleccionado = 0;
+
+        AplicarHorario();
+    }
+
+    private void AplicarHorario()
+    {
+        _viajeSeleccionado = 0;
+
+        _viajesDelHorario = _viajesDelDia
+            .Where(v => v.HorarioRutaId == _horarioSeleccionado)
+            .OrderBy(v => v.AutobusId)
+            .ToList();
+
+        _viajeSeleccionado = _viajesDelHorario.FirstOrDefault(v => v.CupoActual < v.CapacidadMaxima)?.Id ?? 0;
+    }
+
+    private string ObtenerHoraSalida(ViajeModel viaje)
+    {
+        var horario = _detalleRuta?.Horarios.FirstOrDefault(h => h.Id == viaje.HorarioRutaId);
+        return horario is null ? "Hora no disponible" : horario.HoraSalida.ToString(@"hh\:mm");
+    }
+
+    private void SeleccionarViaje(ViajeModel viaje) => _viajeSeleccionado = viaje.Id;
+
+    private async Task ComprarAsync()
+    {
+        _error = null;
+
+        if (_tarjeta is null || _tarjeta.SaldoDisponible < 35)
+        {
+            _error = "No tienes saldo suficiente. Las recargas se registran en el Departamento de Transporte del ITLA.";
+            return;
+        }
+
+        if (_horarioSeleccionado == 0)
+        {
+            _error = "Elige un horario para continuar.";
+            return;
+        }
+
+        var viaje = _viajesDelHorario.FirstOrDefault(v => v.Id == _viajeSeleccionado);
+        if (viaje is null || viaje.CupoActual >= viaje.CapacidadMaxima)
+        {
+            _error = "Este viaje ya no tiene cupo disponible. Elige otro horario.";
+            return;
+        }
+
+        var parada = _detalleRuta?.Paradas.FirstOrDefault(p => p.Id == _paradaSeleccionada);
+        var ruta = _rutas.FirstOrDefault(r => r.Id == _rutaSeleccionada);
+
+        _comprando = true;
+        try
+        {
+            var usuarioId = Sesion.Usuario?.Id ?? 0;
+
+            var dto = new RegistrarAccesoModel
+            {
+                UsuarioTransporteId = usuarioId,
+                ViajeId = viaje.Id,
+                ValidadoPorUsuarioId = usuarioId, // Autocompra: el propio estudiante genera su ticket antes de abordar.
+                CostoViaje = 35m,
+                CreadoPor = $"{Sesion.Usuario?.NombreCompleto} — Parada: {parada?.Nombre}"
+            };
+
+            var resultado = await Api.PostAsync<AccesoModel>("api/accesos", dto);
+
+            if (!resultado.EsExitoso || resultado.Valor is null)
+            {
+                _error = resultado.Error ?? "No se pudo comprar el ticket.";
+                return;
+            }
+
+            if (!resultado.Valor.FuePermitido)
+            {
+                _error = resultado.Valor.MotivoRechazo ?? "No se pudo emitir el ticket para este viaje.";
+                return;
+            }
+
+            _nombreRutaSeleccionada = ruta?.Nombre ?? string.Empty;
+            _nombreParadaSeleccionada = parada?.Nombre ?? string.Empty;
+            _horaViajeSeleccionado = ObtenerHoraSalida(viaje);
+            _ticketComprado = resultado.Valor;
+        }
+        finally
+        {
+            _comprando = false;
+        }
+    }
+
+    private async Task ReiniciarFormulario()
+    {
+        _ticketComprado = null;
+        _rutaSeleccionada = 0;
+        _paradaSeleccionada = 0;
+        _horarioSeleccionado = 0;
+        _viajeSeleccionado = 0;
+        _detalleRuta = null;
+        _viajesRuta.Clear();
+        _viajesDelDia.Clear();
+        _horariosDisponibles.Clear();
+        _viajesDelHorario.Clear();
+        _fecha = DateTime.Today;
+        await CargarSaldoAsync();
+    }
+}

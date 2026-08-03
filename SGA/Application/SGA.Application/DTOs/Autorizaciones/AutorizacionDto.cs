@@ -31,4 +31,9 @@ namespace SGA.Application.DTOs.Autorizaciones
         int UsuarioTransporteId, string? CondicionInstitucional, DateTime? FechaVencimiento, string? CreadoPor);
 
     public sealed record AnularAutorizacionDto(int Id, string? Motivo, string? AnuladoPor);
+    public sealed record RecargarBilleteraDto(
+    int UsuarioTransporteId, decimal Monto, int RegistradoPorUsuarioId, string? CreadoPor);
+
+    public sealed record BilleteraDto(
+        int AutorizacionId, string? NumeroTarjeta, decimal SaldoDisponible, bool FueCreada);
 }

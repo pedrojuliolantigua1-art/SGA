@@ -1,0 +1,55 @@
+@using Microsoft.AspNetCore.Components.Routing
+@using SGA.Web.Models.Notificaciones
+@inject SgaApiService Api
+@inject SesionState Sesion
+@inject NavigationManager Nav
+
+@if (Sesion.EstaAutenticado)
+{
+    <div style="position: fixed; top: 14px; right: 20px; z-index: 1080;">
+        <a href="/notificaciones" title="Notificaciones"
+           style="position: relative; display: inline-flex; align-items: center; justify-content: center; width: 42px; height: 42px; border-radius: 50%; background: #1f2937; color: #fff; text-decoration: none; box-shadow: 0 2px 8px rgba(0,0,0,.25);">
+            <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9" />
+                <path d="M13.73 21a2 2 0 0 1-3.46 0" />
+            </svg>
+            @if (_noLeidas > 0)
+            {
+                <span style="position: absolute; top: -4px; right: -4px; min-width: 18px; height: 18px; border-radius: 9px; background: #dc2626; color: #fff; font-size: 11px; font-weight: 700; line-height: 18px; text-align: center; padding: 0 4px;">@_noLeidas</span>
+            }
+        </a>
+    </div>
+}
+
+@code {
+    private int _noLeidas;
+
+    protected override async Task OnInitializedAsync()
+    {
+        Nav.LocationChanged += OnLocationChanged;
+        await Sesion.RestaurarAsync();
+        await CargarAsync();
+    }
+
+    private async void OnLocationChanged(object? sender, LocationChangedEventArgs e)
+    {
+        await CargarAsync();
+        await InvokeAsync(StateHasChanged);
+    }
+
+    public void Dispose()
+    {
+        Nav.LocationChanged -= OnLocationChanged;
+    }
+
+    private async Task CargarAsync()
+    {
+        var usuarioId = Sesion.Usuario?.Id ?? 0;
+        if (usuarioId == 0)
+            return;
+
+        var resultado = await Api.GetAsync<List<NotificacionModel>>($"api/notificaciones/por-usuario/{usuarioId}");
+        if (resultado.EsExitoso)
+            _noLeidas = (resultado.Valor ?? new()).Count(n => !n.Leida);
+    }
+}

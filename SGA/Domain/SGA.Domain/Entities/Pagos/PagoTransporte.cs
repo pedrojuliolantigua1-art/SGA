@@ -9,9 +9,8 @@ namespace SGA.Domain.Entities.Pagos
         public int UsuarioTransporteId { get; set; }
         public int AutorizacionTransporteId { get; set; }
         public decimal Monto { get; set; }
-        public string? TipoPago { get; set; }
+        public string? TipoPago { get; set; } = "Efectivo";
         public EstadoPago Estado { get; set; } = EstadoPago.Registrado;
-        public string? NumeroComprobante { get; set; }
         public DateTime FechaHora { get; set; }
         public int RegistradoPorUsuarioId { get; set; }
 

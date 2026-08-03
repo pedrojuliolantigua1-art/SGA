@@ -23,6 +23,7 @@ namespace SGA.Infrastructure.Persistence.Data
         public DbSet<EmpleadoDocente> EmpleadosDocentes => Set<EmpleadoDocente>();
         public DbSet<EmpleadoAdministrativo> EmpleadosAdministrativos => Set<EmpleadoAdministrativo>();
         public DbSet<Conductor> Conductores => Set<Conductor>();
+        public DbSet<AdministradorTransporte> AdministradoresTransporte => Set<AdministradorTransporte>();
 
         public DbSet<AutorizacionTransporte> AutorizacionesTransporte => Set<AutorizacionTransporte>();
         public DbSet<TicketDiario> TicketsDiarios => Set<TicketDiario>();
@@ -59,6 +60,7 @@ namespace SGA.Infrastructure.Persistence.Data
             modelBuilder.Entity<EmpleadoDocente>(entity => { entity.ToTable("EmpleadosDocentes"); });
             modelBuilder.Entity<EmpleadoAdministrativo>(entity => { entity.ToTable("EmpleadosAdministrativos"); });
             modelBuilder.Entity<Conductor>(entity => { entity.ToTable("Conductores"); });
+            modelBuilder.Entity<AdministradorTransporte>(entity => { entity.ToTable("AdministradoresTransporte"); });
 
             // Rutas
             modelBuilder.Entity<Ruta>(entity =>
@@ -77,8 +79,17 @@ namespace SGA.Infrastructure.Persistence.Data
                       .OnDelete(DeleteBehavior.Cascade);
             });
 
-            modelBuilder.Entity<Parada>(entity => { entity.HasKey(e => e.Id); });
-            modelBuilder.Entity<HorarioRuta>(entity => { entity.HasKey(e => e.Id); });
+            modelBuilder.Entity<Parada>(entity =>
+            {
+                entity.HasKey(e => e.Id);
+                entity.HasQueryFilter(e => !e.Eliminado);
+            });
+
+            modelBuilder.Entity<HorarioRuta>(entity =>
+            {
+                entity.HasKey(e => e.Id);
+                entity.HasQueryFilter(e => !e.Eliminado);
+            });
 
             // Autobuses
             modelBuilder.Entity<Autobus>(entity =>
@@ -172,14 +183,22 @@ namespace SGA.Infrastructure.Persistence.Data
 
             base.OnModelCreating(modelBuilder);
         }
-
         public override async Task<int> SaveChangesAsync(CancellationToken ct = default)
         {
             var ahora = DateTime.UtcNow;
             foreach (var entry in ChangeTracker.Entries<Auditable>())
             {
-                if (entry.State == EntityState.Added) entry.Entity.FechaCreacion = ahora;
-                else if (entry.State == EntityState.Modified) entry.Entity.FechaModificacion = ahora;
+                if (entry.State == EntityState.Added)
+                {
+                    entry.Entity.FechaCreacion = ahora;
+                }
+                else if (entry.State == EntityState.Modified)
+                {
+                    entry.Entity.FechaModificacion = ahora;
+
+                    entry.Property(nameof(Auditable.FechaCreacion)).IsModified = false;
+                    entry.Property(nameof(Auditable.CreadoPor)).IsModified = false;
+                }
             }
             return await base.SaveChangesAsync(ct);
         }

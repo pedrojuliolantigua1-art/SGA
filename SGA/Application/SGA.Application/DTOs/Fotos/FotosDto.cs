@@ -11,4 +11,6 @@ namespace SGA.Application.DTOs.Fotos
 
     public sealed record SubirFotoIncidenciaDto(
         int IncidenciaId, string NombreArchivo, string UrlPublica, string PublicId, string? SubidoPor);
+
+
 }

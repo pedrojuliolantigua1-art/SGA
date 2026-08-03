@@ -77,4 +77,17 @@ namespace SGA.Application.DTOs.Usuarios
         string? NumeroLicencia, DateTime? FechaVencimientoLicencia);
 
     public sealed record CambiarDisponibilidadConductorDto(bool Disponible);
+
+    // ─── Administrador de Transporte ──────────────────────────────────────────
+    public sealed record AdministradorTransporteDto(
+        int Id, string? Nombre, string? Apellido, string? Correo, string? Telefono,
+        string Estado, string? Departamento, string? Cargo);
+
+    public sealed record CrearAdministradorTransporteDto(
+        string? Nombre, string? Apellido, string? Correo, string? Telefono,
+        string? PasswordHash, string? Departamento, string? Cargo, string? CreadoPor);
+
+    public sealed record ActualizarAdministradorTransporteDto(
+        string? Nombre, string? Apellido, string? Correo, string? Telefono,
+        string? Departamento, string? Cargo);
 }

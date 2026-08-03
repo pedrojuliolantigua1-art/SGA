@@ -3,9 +3,11 @@ using SGA.Api.Common;
 using SGA.Application.DTOs.Common;
 using SGA.Application.DTOs.Paradas;
 using SGA.Application.Interfaces.Services;
+using Microsoft.AspNetCore.Authorization;
 
 namespace SGA.Api.Controllers
 {
+    [Authorize]
     [ApiController]
     [Route("api/paradas")]
     public sealed class ParadasController : ControllerBase
